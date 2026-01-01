@@ -1,0 +1,45 @@
+{
+  "name": "@assetpipe/config",
+  "version": "0.0.1",
+  "author": "",
+  "license": "Apache-2.0",
+  "description": "",
+  "main": "./dist/exports.js",
+  "module": "./dist/exports.mjs",
+  "types": "./dist/exports.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/exports.d.mts",
+        "default": "./dist/exports.mjs"
+      },
+      "require": {
+        "types": "./dist/exports.d.ts",
+        "default": "./dist/exports.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "dependencies": {
+    "@assetpipe/core": "*"
+  },
+  "nx": {
+    "name": "config",
+    "targets": {
+      "build": {
+        "inputs": [
+          "{projectRoot}/**/*.ts"
+        ],
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
+      },
+      "dev": {
+        "continuous": true
+      }
+    }
+  }
+}

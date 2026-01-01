@@ -1,0 +1,23 @@
+{
+  "name": "@assetpipe/root",
+  "private": true,
+  "license": "Apache-2.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@nx/eslint": "^21.5.3",
+    "@types/node": "^24.5.2",
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "eslint-plugin-unused-imports": "^4.2.0",
+    "globals": "^16.4.0",
+    "nx": "21.5.3",
+    "prettier": "^3.6.2",
+    "tsdown": "^0.15.6",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.45.0"
+  }
+}

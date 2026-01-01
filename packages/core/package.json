@@ -1,0 +1,66 @@
+{
+  "name": "@assetpipe/core",
+  "version": "0.0.1",
+  "author": "",
+  "license": "Apache-2.0",
+  "description": "",
+  "exports": {
+    "./types": {
+      "import": {
+        "types": "./dist/types.d.mts",
+        "default": "./dist/types.mjs"
+      },
+      "require": {
+        "types": "./dist/types.d.ts",
+        "default": "./dist/types.js"
+      }
+    },
+    "./pipelines": {
+      "import": {
+        "types": "./dist/pipelines/index.d.mts",
+        "default": "./dist/pipelines/index.mjs"
+      },
+      "require": {
+        "types": "./dist/pipelines/index.d.ts",
+        "default": "./dist/pipelines/index.js"
+      }
+    },
+    "./utils": {
+      "import": {
+        "types": "./dist/utils/index.d.mts",
+        "default": "./dist/utils/index.mjs"
+      },
+      "require": {
+        "types": "./dist/utils/index.d.ts",
+        "default": "./dist/utils/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "dependencies": {
+    "@types/picomatch": "^4.0.2",
+    "picomatch": "^4.0.3"
+  },
+  "devDependencies": {
+    "tsdown": "^0.15.6"
+  },
+  "nx": {
+    "name": "core",
+    "targets": {
+      "build": {
+        "inputs": [
+          "{projectRoot}/**/*.ts"
+        ],
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
+      },
+      "dev": {
+        "continuous": true
+      }
+    }
+  }
+}
