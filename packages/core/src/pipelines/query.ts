@@ -19,6 +19,7 @@ export interface QueryPipeline extends InteractivePipeline {
 }
 
 export const QueryPipeline = new PipelineMixin(
+  "QueryPipeline",
   (obj: QueryPipeline, options: QueryPipelineOptions) => {
     obj.files = options.files ?? [];
     obj.commands = options.commands ?? [];

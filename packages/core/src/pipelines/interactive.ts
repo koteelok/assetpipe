@@ -12,6 +12,7 @@ export interface InteractivePipeline extends Pipeline {
 }
 
 export const InteractivePipeline = new PipelineMixin(
+  "InteractivePipeline",
   (obj: InteractivePipeline, options: InteractivePipelineOptions) => {
     obj.files = options.files ?? [];
     obj.commands = options.commands ?? [];

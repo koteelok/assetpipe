@@ -5,14 +5,16 @@ export interface Pipeline {
 
 export class PipelineMixin<TArgs extends any[], TReturn extends Pipeline> {
   private static instances: PipelineMixin<any, any>[] = [];
-  private static staticSymbol = Symbol();
-  private instanceSymbol = Symbol();
+  private static rootSymbol = Symbol("PipelineMixin");
+  private instanceSymbol: symbol;
   private parentSymbols: symbol[] = [];
 
   constructor(
+    private name: string,
     private applyOptions: (obj: any, ...args: TArgs) => TReturn,
     private parent?: PipelineMixin<any, any>
   ) {
+    this.instanceSymbol = Symbol(this.name);
     let current = parent;
     while (current) {
       this.parentSymbols.push(current.instanceSymbol);
@@ -22,7 +24,7 @@ export class PipelineMixin<TArgs extends any[], TReturn extends Pipeline> {
   }
 
   static is(obj: any): obj is Pipeline {
-    return obj[PipelineMixin.staticSymbol] === true;
+    return obj[PipelineMixin.rootSymbol] === true;
   }
 
   is(obj: any): obj is TReturn {
@@ -33,7 +35,7 @@ export class PipelineMixin<TArgs extends any[], TReturn extends Pipeline> {
     for (const mixin of PipelineMixin.instances) {
       obj[mixin.instanceSymbol] = false;
     }
-    obj[PipelineMixin.staticSymbol] = true;
+    obj[PipelineMixin.rootSymbol] = true;
     obj[this.instanceSymbol] = true;
     for (const parentSymbol of this.parentSymbols) {
       obj[parentSymbol] = true;

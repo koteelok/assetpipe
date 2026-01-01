@@ -13,6 +13,7 @@ export interface ContextPipeline extends GroupPipeline {
 }
 
 export const ContextPipeline = new PipelineMixin(
+  "ContextPipeline",
   (obj: ContextPipeline, options: ContextPipelineOptions) => {
     obj.files = options.files ?? [];
     obj.commands = options.commands ?? [];

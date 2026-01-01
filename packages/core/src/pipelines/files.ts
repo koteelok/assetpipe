@@ -11,6 +11,7 @@ export interface FilesPipeline extends InteractivePipeline {
 }
 
 export const FilesPipeline = new PipelineMixin(
+  "FilesPipeline",
   (obj: FilesPipeline, options: FilesPipelineOptions) => {
     obj.files = options.files;
     obj.commands = [];
