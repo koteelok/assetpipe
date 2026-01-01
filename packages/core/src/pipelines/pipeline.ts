@@ -16,7 +16,7 @@ export class PipelineMixin<TArgs extends any[], TReturn extends Pipeline> {
     let current = parent;
     while (current) {
       this.parentSymbols.push(current.instanceSymbol);
-      if (current.parent) current = current.parent;
+      current = current.parent;
     }
     PipelineMixin.instances.push(this);
   }
