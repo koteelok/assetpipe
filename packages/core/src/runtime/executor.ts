@@ -29,6 +29,8 @@ export class PipelineExecutor {
   }
 
   async execute() {
+    this.resetPipelineResults(this.root);
+
     await this.processQueries();
 
     await this.orchestratePipeline(this.root);
@@ -79,6 +81,29 @@ export class PipelineExecutor {
       for (const command of parent.commands) {
         if (command.type === "pull") {
           this.acquireQueries(command.pipeline);
+        }
+      }
+    }
+  }
+
+  private resetPipelineResults(parent: Pipeline) {
+    if (QueryPipeline.is(parent)) {
+      parent.queryResult = [];
+    }
+
+    if (GroupPipeline.is(parent)) {
+      for (const child of parent.children) {
+        this.resetPipelineResults(child);
+      }
+    }
+
+    if (InteractivePipeline.is(parent)) {
+      parent.result = [];
+      parent.resultPromise = undefined;
+
+      for (const command of parent.commands) {
+        if (command.type === "pull") {
+          this.resetPipelineResults(command.pipeline);
         }
       }
     }

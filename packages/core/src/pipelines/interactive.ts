@@ -8,7 +8,7 @@ export interface InteractivePipelineOptions {
 export interface InteractivePipeline extends Pipeline {
   commands: PipelineCommand[];
   result: File[];
-  resultPromise: Promise<void>;
+  resultPromise?: Promise<void>;
 }
 
 export const InteractivePipeline = new PipelineMixin(
