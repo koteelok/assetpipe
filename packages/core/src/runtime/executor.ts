@@ -1,7 +1,4 @@
-import { readdir } from "node:fs/promises";
 import path from "node:path";
-
-import picomatch from "picomatch";
 
 import {
   ContextPipeline,
@@ -12,7 +9,8 @@ import {
   QueryPipeline,
 } from "../pipelines";
 import { Pipeline, PipelineMixin } from "../pipelines/pipeline";
-import { exists } from "../utils/exists";
+import { executeQuery } from "./query";
+import { clonePipeline } from "../utils/clone";
 import { File } from "../types";
 
 export class PipelineExecutor {
@@ -23,189 +21,95 @@ export class PipelineExecutor {
       throw new Error("Invalid object passed as pipeline.");
     }
 
-    this.root = pipeline;
+    this.root = clonePipeline(pipeline);
+
+    this.assignIds(this.root);
+
+    this.acquireQueries(this.root);
   }
 
   async execute() {
-    this.assignIds();
-    await this.executeAllQueries();
-    this.delaminatePipelines();
+    await this.processQueries();
+
+    await this.orchestratePipeline(this.root);
   }
 
-  private assignIds() {
-    const pipelines: Pipeline[] = [this.root];
-    let idCounter = 0;
+  private assignIds(parent: Pipeline, counter = 0) {
+    if (parent.id !== undefined) return;
+    parent.id = "" + counter;
+    counter++;
 
-    do {
-      const parent = pipelines.pop()!;
-
-      if (parent.id !== undefined) continue;
-
-      parent.id = "" + idCounter;
-      idCounter++;
-
-      if (GroupPipeline.is(parent)) {
-        for (const child of parent.children) {
-          pipelines.push(child);
-        }
-      }
-
-      if (InteractivePipeline.is(parent)) {
-        for (const command of parent.commands) {
-          if (command.type === "pull") {
-            pipelines.push(command.pipeline);
-          }
-        }
-      }
-    } while (pipelines.length);
-  }
-
-  private async executeQuery(
-    pipeline: IgnorePipeline | QueryPipeline,
-    context = ""
-  ) {
-    const files: File[] = [];
-    const queryArray: string[] = [];
-
-    if (Array.isArray(pipeline.query)) {
-      queryArray.push(...pipeline.query);
-    } else {
-      queryArray.push(pipeline.query);
-    }
-
-    for (const query of queryArray) {
-      const state = picomatch.scan(
-        path.join(context, query).replace(/\\/g, "/")
-      );
-      const basePath = path.resolve(process.cwd(), state.base);
-
-      if (state.glob === "") {
-        if (!(await exists(basePath))) {
-          throw new Error(
-            `[${query}] Query error. File ${basePath} not found.`
-          );
-        }
-
-        files.push({
-          dirname: "",
-          basename: path.basename(state.base),
-          content: basePath,
-        });
-
-        continue;
-      }
-
-      const dirents = await readdir(basePath, {
-        recursive: true,
-        withFileTypes: true,
-      }).catch(() => []);
-
-      if (dirents.length === 0) return;
-
-      dirents.sort((a, b) => {
-        const aPath = path.join(a.parentPath, a.name);
-        const bPath = path.join(b.parentPath, b.name);
-        return aPath.localeCompare(bPath);
-      });
-
-      const matcher = picomatch(state.glob, {
-        windows: process.platform === "win32",
-      });
-
-      for (const dirent of dirents) {
-        if (!dirent.isFile()) continue;
-
-        const fullPath = path.join(dirent.parentPath, dirent.name);
-        const isMatch = matcher(path.relative(basePath, fullPath));
-
-        if (!isMatch) continue;
-
-        files.push({
-          basename: dirent.name,
-          dirname: path.relative(basePath, dirent.parentPath),
-          content: fullPath,
-        });
+    if (GroupPipeline.is(parent)) {
+      for (const child of parent.children) {
+        this.assignIds(child, counter);
       }
     }
 
-    pipeline.files.push(...files);
-
-    return;
+    if (InteractivePipeline.is(parent)) {
+      for (const command of parent.commands) {
+        if (command.type === "pull") {
+          this.assignIds(command.pipeline, counter);
+        }
+      }
+    }
   }
 
-  private async executeAllQueries() {
-    const pipelines: Pipeline[] = [this.root];
-    const contextMap = new Map<Pipeline, string>();
-    const pendingQueries = new Map<
-      IgnorePipeline | QueryPipeline,
-      Promise<void>
-    >();
+  private queries!: Array<QueryPipeline | IgnorePipeline>;
 
-    do {
-      const parent = pipelines.pop();
+  private acquireQueries(parent: Pipeline, context = "") {
+    if (QueryPipeline.is(parent) || IgnorePipeline.is(parent)) {
+      parent.context = context;
 
-      if (QueryPipeline.is(parent)) {
-        if (pendingQueries.has(parent)) {
-          continue;
-        }
-
-        pendingQueries.set(
-          parent,
-          this.executeQuery(parent, contextMap.get(parent))
-        );
+      if (!this.queries.includes(parent)) {
+        this.queries.push(parent);
       }
+    }
 
-      if (ContextPipeline.is(parent)) {
-        for (const child of parent.children) {
-          const currentContext = contextMap.get(child);
-          contextMap.set(
-            child,
-            currentContext
-              ? path.join(parent.context, currentContext)
-              : parent.context
-          );
+    if (ContextPipeline.is(parent)) {
+      context = context ? path.join(parent.context, context) : parent.context;
+    }
+
+    if (GroupPipeline.is(parent)) {
+      for (const child of parent.children) {
+        this.acquireQueries(child, context);
+      }
+    }
+
+    if (InteractivePipeline.is(parent)) {
+      for (const command of parent.commands) {
+        if (command.type === "pull") {
+          this.acquireQueries(command.pipeline);
         }
       }
+    }
+  }
 
-      if (GroupPipeline.is(parent)) {
-        for (const child of parent.children) {
-          pipelines.push(child);
-        }
-
-        parent.children = parent.children.filter(
-          (child) => !IgnorePipeline.is(child)
-        );
-      }
-
-      if (InteractivePipeline.is(parent)) {
-        for (const command of parent.commands) {
-          if (command.type === "pull") {
-            pipelines.push(command.pipeline);
-          }
-        }
-      }
-    } while (pipelines.length);
-
-    await Promise.all(pendingQueries.values());
+  private async processQueries() {
+    await Promise.all(
+      this.queries.map(async (pipeline) => {
+        const files = await executeQuery(pipeline);
+        pipeline.queryResult = files;
+      })
+    );
 
     const occupiedFiles = new Set<string>();
 
-    for (const pipeline of pendingQueries.keys()) {
+    for (const pipeline of this.queries) {
       if (IgnorePipeline.is(pipeline)) {
-        for (const file of pipeline.files) {
+        for (const file of pipeline.queryResult) {
           occupiedFiles.add(file.content);
         }
       }
     }
 
-    for (const pipeline of pendingQueries.keys()) {
+    for (const pipeline of this.queries) {
       if (QueryPipeline.is(pipeline)) {
-        pipeline.files = pipeline.files.filter(
+        pipeline.queryResult = pipeline.queryResult.filter(
           (file) => !occupiedFiles.has(file.content)
         );
 
         if (pipeline.claim) {
-          for (const file of pipeline.files) {
+          for (const file of pipeline.queryResult) {
             occupiedFiles.add(file.content);
           }
         }
@@ -213,77 +117,118 @@ export class PipelineExecutor {
     }
   }
 
-  private delaminatePipelines() {
-    const pipelines: Pipeline[] = [this.root];
+  private async orchestratePipeline(parent: Pipeline) {
+    if (!InteractivePipeline.is(parent)) {
+      return;
+    }
 
-    do {
-      const parent = pipelines.pop()!;
+    if (parent.resultPromise) {
+      return parent.resultPromise;
+    }
 
-      if (parent.delaminated) continue;
-      parent.delaminated = true;
+    let resolve!: () => void;
+    parent.resultPromise = new Promise<void>(
+      (_resolve) => (resolve = _resolve)
+    );
 
-      if (QueryPipeline.is(parent)) {
-        if (parent.bulk) continue;
+    if (GroupPipeline.is(parent)) {
+      let inputs: File[] = [];
 
-        if (parent.groupBy !== undefined) {
-          const children: Pipeline[] = [];
-          const tagMap: Record<string, File[]> = {};
+      await Promise.all(
+        parent.children.map((child) => this.orchestratePipeline(child))
+      );
 
-          for (const file of parent.files) {
-            const tag = parent.groupBy(file);
+      for (const child of parent.children) {
+        if (InteractivePipeline.is(child)) {
+          inputs.push(...child.result);
+        }
+      }
 
-            if (tagMap[tag] === undefined) {
-              tagMap[tag] = [];
-            }
+      parent.result = await this.processCommands(parent, inputs);
+    } else if (QueryPipeline.is(parent)) {
+      if (parent.bulk) {
+        parent.result = await this.processCommands(parent, parent.queryResult);
+      } else if (parent.groupBy !== undefined) {
+        parent.result = [];
 
-            tagMap[tag].push(file);
+        const tagMap: Record<string, File[]> = {};
+
+        for (const file of parent.queryResult) {
+          const tag = parent.groupBy(file);
+          if (tagMap[tag] === undefined) {
+            tagMap[tag] = [];
           }
+          tagMap[tag].push(file);
+        }
 
-          for (const tag in tagMap) {
-            const child = FilesPipeline.mixin(
-              {},
-              {
-                files: tagMap[tag],
-                commands: parent.commands,
+        for (const tag in tagMap) {
+          const files = await this.processCommands(parent, tagMap[tag]);
+          parent.result.push(...files);
+        }
+      } else {
+        parent.result = [];
+
+        for (const file of parent.queryResult) {
+          const files = await this.processCommands(parent, [file]);
+          parent.result.push(...files);
+        }
+      }
+    } else if (FilesPipeline.is(parent)) {
+      parent.result = await this.processCommands(parent, parent.files);
+    }
+
+    resolve();
+    return parent.resultPromise;
+  }
+
+  private async processCommands(parent: InteractivePipeline, inputs: File[]) {
+    let output = [...inputs];
+
+    for (let i = 0; i < parent.commands.length; i++) {
+      const command = parent.commands[i];
+
+      switch (command.type) {
+        case "pipe":
+          parent.result = await command.transformer(output);
+          // parent.files = limitPromise(() => command.transformer(parent.files));
+          break;
+
+        case "branch":
+          parent.result = await Promise.all(
+            command.transformers.map(
+              (transformer) =>
+                // limitPromise(() =>
+                transformer(output)
+              // )
+            )
+          ).then((results) => results.flat());
+          break;
+
+        case "pull":
+          const pulls: Pipeline[] = [command.pipeline];
+
+          let offset = 1;
+          let nextCommand = parent.commands[i + offset];
+          while (nextCommand && nextCommand.type === "pull") {
+            pulls.push(nextCommand.pipeline);
+            offset++;
+            nextCommand = parent.commands[i + offset];
+          }
+          i += offset - 1;
+
+          await Promise.all(
+            pulls.map(async (pipeline) => {
+              await this.orchestratePipeline(pipeline);
+
+              if (InteractivePipeline.is(pipeline)) {
+                output.push(...pipeline.result);
               }
-            );
-            child.id = `${parent.id}_${tag}`;
-            children.push(child);
-          }
-
-          GroupPipeline.mixin(parent, { children });
-        }
-
-        const children: Pipeline[] = [];
-
-        for (let i = 0; i < parent.files.length; i++) {
-          const child = FilesPipeline.mixin(
-            {},
-            {
-              files: [parent.files[i]],
-              commands: parent.commands,
-            }
+            })
           );
-          child.id = `${parent.id}_${i}`;
-          children.push(child);
-        }
-
-        GroupPipeline.mixin(parent, { children });
+          break;
       }
+    }
 
-      if (InteractivePipeline.is(parent)) {
-        for (const command of parent.commands) {
-          if (command.type === "pull") {
-            pipelines.push(command.pipeline);
-          }
-        }
-      }
-
-      if (GroupPipeline.is(parent)) {
-        for (const child of parent.children) {
-          pipelines.push(child);
-        }
-      }
-    } while (pipelines.length);
+    return output;
   }
 }

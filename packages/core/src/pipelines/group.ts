@@ -13,8 +13,8 @@ export interface GroupPipeline extends InteractivePipeline {
 export const GroupPipeline = new PipelineMixin(
   "GroupPipeline",
   (obj: GroupPipeline, options: GroupPipelineOptions) => {
-    obj.files = options.files ?? [];
     obj.commands = options.commands ?? [];
+    obj.result = [];
     obj.children = options.children;
     return obj;
   },

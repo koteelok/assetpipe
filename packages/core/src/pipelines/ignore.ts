@@ -7,14 +7,16 @@ export interface IgnorePipelineOptions {
 
 export interface IgnorePipeline extends Pipeline {
   query: QueryLike;
-  files: File[];
+  queryResult: File[];
+  context: string;
 }
 
 export const IgnorePipeline = new PipelineMixin(
   "IgnorePipeline",
   (obj: IgnorePipeline, options: IgnorePipelineOptions) => {
     obj.query = options.query;
-    obj.files = [];
+    obj.queryResult = [];
+    obj.context = "";
     return obj;
   }
 );

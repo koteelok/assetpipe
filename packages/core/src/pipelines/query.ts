@@ -12,6 +12,8 @@ export interface QueryPipelineOptions extends InteractivePipelineOptions {
 
 export interface QueryPipeline extends InteractivePipeline {
   query: QueryLike;
+  queryResult: File[];
+  context: string;
   claim?: boolean;
   ignore?: boolean;
   bulk?: boolean;
@@ -21,9 +23,11 @@ export interface QueryPipeline extends InteractivePipeline {
 export const QueryPipeline = new PipelineMixin(
   "QueryPipeline",
   (obj: QueryPipeline, options: QueryPipelineOptions) => {
-    obj.files = options.files ?? [];
     obj.commands = options.commands ?? [];
+    obj.result = [];
     obj.query = options.query;
+    obj.queryResult = [];
+    obj.context = "";
     obj.claim = options.claim;
     obj.ignore = options.ignore;
     obj.bulk = options.bulk;

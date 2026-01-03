@@ -1,17 +1,17 @@
 export interface Pipeline {
   id: string;
-  delaminated: boolean;
 }
 
-export class PipelineMixin<TArgs extends any[], TReturn extends Pipeline> {
-  private static instances: PipelineMixin<any, any>[] = [];
-  private static rootSymbol = Symbol("PipelineMixin");
+export class PipelineMixin<TOptions extends any, TReturn extends Pipeline> {
+  static instances: PipelineMixin<any, any>[] = [];
+  static optionsSymbol = Symbol("PipelineMixinOptions");
+  static rootSymbol = Symbol("PipelineMixin");
   private instanceSymbol: symbol;
   private parentSymbols: symbol[] = [];
 
   constructor(
     private name: string,
-    private applyOptions: (obj: any, ...args: TArgs) => TReturn,
+    private applyOptions: (obj: any, options: TOptions) => TReturn,
     private parent?: PipelineMixin<any, any>
   ) {
     this.instanceSymbol = Symbol(this.name);
@@ -27,11 +27,11 @@ export class PipelineMixin<TArgs extends any[], TReturn extends Pipeline> {
     return obj[PipelineMixin.rootSymbol] === true;
   }
 
-  is(obj: any): obj is TReturn {
+  is(obj: any): obj is TReturn & { [PipelineMixin.optionsSymbol]: TOptions } {
     return obj[this.instanceSymbol] === true;
   }
 
-  mixin(obj: any, ...args: TArgs) {
+  mixin(obj: any, options: TOptions) {
     for (const mixin of PipelineMixin.instances) {
       obj[mixin.instanceSymbol] = false;
     }
@@ -40,6 +40,7 @@ export class PipelineMixin<TArgs extends any[], TReturn extends Pipeline> {
     for (const parentSymbol of this.parentSymbols) {
       obj[parentSymbol] = true;
     }
-    return this.applyOptions(obj, ...args);
+    obj[PipelineMixin.optionsSymbol] = options;
+    return this.applyOptions(obj, options);
   }
 }

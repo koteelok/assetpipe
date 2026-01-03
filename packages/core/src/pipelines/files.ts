@@ -15,6 +15,7 @@ export const FilesPipeline = new PipelineMixin(
   (obj: FilesPipeline, options: FilesPipelineOptions) => {
     obj.files = options.files;
     obj.commands = [];
+    obj.result = [];
     return obj;
   },
   InteractivePipeline
