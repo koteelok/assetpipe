@@ -54,7 +54,7 @@ export class PipelineExecutor {
     }
   }
 
-  private queries!: Array<QueryPipeline | IgnorePipeline>;
+  private queries: Array<QueryPipeline | IgnorePipeline> = [];
 
   private acquireQueries(parent: Pipeline, context = "") {
     if (QueryPipeline.is(parent) || IgnorePipeline.is(parent)) {
