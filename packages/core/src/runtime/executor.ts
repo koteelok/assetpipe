@@ -16,7 +16,7 @@ import { File } from "../types";
 export class PipelineExecutor {
   root: Pipeline;
 
-  constructor(pipeline: Pipeline) {
+  constructor(pipeline: any) {
     if (!PipelineMixin.is(pipeline)) {
       throw new Error("Invalid object passed as pipeline.");
     }
