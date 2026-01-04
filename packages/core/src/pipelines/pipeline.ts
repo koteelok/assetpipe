@@ -4,43 +4,43 @@ export interface Pipeline {
 
 export class PipelineMixin<TOptions extends any, TReturn extends Pipeline> {
   static instances: PipelineMixin<any, any>[] = [];
-  static optionsSymbol = Symbol("PipelineMixinOptions");
-  static rootSymbol = Symbol("PipelineMixin");
-  private instanceSymbol: symbol;
-  private parentSymbols: symbol[] = [];
+  static optionsKey = "$Options";
+  static rootKey = "$isPipeline";
+  private instanceKey: string;
+  private parentKeys: string[] = [];
 
   constructor(
     private name: string,
     private applyOptions: (obj: any, options: TOptions) => TReturn,
     private parent?: PipelineMixin<any, any>
   ) {
-    this.instanceSymbol = Symbol(this.name);
+    this.instanceKey = `$is${this.name}`;
     let current = parent;
     while (current) {
-      this.parentSymbols.push(current.instanceSymbol);
+      this.parentKeys.push(current.instanceKey);
       current = current.parent;
     }
     PipelineMixin.instances.push(this);
   }
 
   static is(obj: any): obj is Pipeline {
-    return obj[PipelineMixin.rootSymbol] === true;
+    return obj[PipelineMixin.rootKey] === true;
   }
 
-  is(obj: any): obj is TReturn & { [PipelineMixin.optionsSymbol]: TOptions } {
-    return obj[this.instanceSymbol] === true;
+  is(obj: any): obj is TReturn & { [PipelineMixin.optionsKey]: TOptions } {
+    return obj[this.instanceKey] === true;
   }
 
   mixin(obj: any, options: TOptions) {
     for (const mixin of PipelineMixin.instances) {
-      obj[mixin.instanceSymbol] = false;
+      obj[mixin.instanceKey] = false;
     }
-    obj[PipelineMixin.rootSymbol] = true;
-    obj[this.instanceSymbol] = true;
-    for (const parentSymbol of this.parentSymbols) {
+    obj[PipelineMixin.rootKey] = true;
+    obj[this.instanceKey] = true;
+    for (const parentSymbol of this.parentKeys) {
       obj[parentSymbol] = true;
     }
-    obj[PipelineMixin.optionsSymbol] = options;
+    obj[PipelineMixin.optionsKey] = options;
     return this.applyOptions(obj, options);
   }
 }

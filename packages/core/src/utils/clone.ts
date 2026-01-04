@@ -9,7 +9,7 @@ import { InteractivePipeline, PipelineCommand } from "../pipelines/interactive";
 import { Pipeline, PipelineMixin } from "../pipelines/pipeline";
 import { File } from "../types";
 
-const { optionsSymbol } = PipelineMixin;
+const { optionsKey } = PipelineMixin;
 
 export function cloneCommands(commands: PipelineCommand[]): PipelineCommand[] {
   const clone: PipelineCommand[] = [];
@@ -51,7 +51,7 @@ export function cloneFiles(files: File[]): File[] {
  */
 export function clonePipeline(pipeline: Pipeline): Pipeline {
   if (ContextPipeline.is(pipeline)) {
-    const options = pipeline[optionsSymbol];
+    const options = pipeline[optionsKey];
 
     return ContextPipeline.mixin(
       {},
@@ -66,7 +66,7 @@ export function clonePipeline(pipeline: Pipeline): Pipeline {
   }
 
   if (FilesPipeline.is(pipeline)) {
-    const options = pipeline[optionsSymbol];
+    const options = pipeline[optionsKey];
 
     return FilesPipeline.mixin(
       {},
@@ -80,7 +80,7 @@ export function clonePipeline(pipeline: Pipeline): Pipeline {
   }
 
   if (GroupPipeline.is(pipeline)) {
-    const options = pipeline[optionsSymbol];
+    const options = pipeline[optionsKey];
 
     return GroupPipeline.mixin(
       {},
@@ -94,7 +94,7 @@ export function clonePipeline(pipeline: Pipeline): Pipeline {
   }
 
   if (IgnorePipeline.is(pipeline)) {
-    const options = pipeline[optionsSymbol];
+    const options = pipeline[optionsKey];
 
     return IgnorePipeline.mixin(
       {},
@@ -108,7 +108,7 @@ export function clonePipeline(pipeline: Pipeline): Pipeline {
   }
 
   if (QueryPipeline.is(pipeline)) {
-    const options = pipeline[optionsSymbol];
+    const options = pipeline[optionsKey];
 
     return QueryPipeline.mixin(
       {},
@@ -128,7 +128,7 @@ export function clonePipeline(pipeline: Pipeline): Pipeline {
   }
 
   if (InteractivePipeline.is(pipeline)) {
-    const options = pipeline[optionsSymbol];
+    const options = pipeline[optionsKey];
 
     return InteractivePipeline.mixin(
       {},

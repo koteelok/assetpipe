@@ -157,7 +157,7 @@ export class PipelineExecutor {
     );
 
     if (GroupPipeline.is(parent)) {
-      let inputs: File[] = [];
+      let files: File[] = [];
 
       await Promise.all(
         parent.children.map((child) => this.orchestratePipeline(child))
@@ -165,11 +165,11 @@ export class PipelineExecutor {
 
       for (const child of parent.children) {
         if (InteractivePipeline.is(child)) {
-          inputs.push(...child.result);
+          files.push(...child.result);
         }
       }
 
-      parent.result = await this.processCommands(parent, inputs);
+      parent.result = await this.processCommands(parent, files);
     } else if (QueryPipeline.is(parent)) {
       if (parent.bulk) {
         parent.result = await this.processCommands(parent, parent.queryResult);
