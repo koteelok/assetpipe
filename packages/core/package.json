@@ -25,14 +25,14 @@
         "default": "./dist/pipelines/index.js"
       }
     },
-    "./utils": {
+    "./runtime": {
       "import": {
-        "types": "./dist/utils/index.d.mts",
-        "default": "./dist/utils/index.mjs"
+        "types": "./dist/runtime/index.d.mts",
+        "default": "./dist/runtime/index.mjs"
       },
       "require": {
-        "types": "./dist/utils/index.d.ts",
-        "default": "./dist/utils/index.js"
+        "types": "./dist/runtime/index.d.ts",
+        "default": "./dist/runtime/index.js"
       }
     }
   },
