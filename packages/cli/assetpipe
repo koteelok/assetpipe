@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+"use strict";
+
+var path = require("path");
+var { Command } = require("commander");
+var { createJiti } = require("jiti");
+var { PipelineExecutor } = require("@assetpipe/core/runtime");
+
+var program = new Command();
+
+program
+  .name("assetpipe")
+  .description("CLI to execute AssetPipe's pipelines")
+  .version("1.0.0")
+  .option("-w, --watch", "Watch mode", false)
+  .option("-c, --cache <PATH>", "Cache directory")
+  .option("-o, --output <PATH>", "Output directory", "out")
+  .argument("<PIPELINE_PATH>");
+
+program.parse();
+
+var [PIPELINE_PATH] = program.args;
+var options = program.opts();
+
+const jiti = createJiti(__filename);
+
+jiti.import(path.resolve(PIPELINE_PATH), { default: true }).then((pipeline) => {
+  const executor = new PipelineExecutor(pipeline);
+
+  executor.execute().then(() => {
+    console.log(executor.root);
+  });
+});

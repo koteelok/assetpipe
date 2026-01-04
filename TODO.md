@@ -1,6 +1,6 @@
 - [x] Functional API
 
-- [ ] CLI
+- [x] CLI
 
 - [ ] Watch mode (CLI only?)
 
