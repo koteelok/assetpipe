@@ -1,7 +1,7 @@
 import * as mixins from "@assetpipe/core/pipelines";
 import { ArrayOr, File, Transformer } from "@assetpipe/core/types";
 
-import { queryArray,QueryLike } from "./query";
+import { queryArray, QueryLike } from "./query";
 
 // Fake API-like classes to make user comfortable lol
 

@@ -248,28 +248,31 @@ export class PipelineRuntime {
 
     if (this.cache && parent.cacheHit) {
       if (parent.firstDirtyPull !== undefined) {
-        const beforePullKey = `${parent.id}:before-pull:${parent.firstDirtyPull}`;
+        const cachedFiles = this.cache.read(
+          this.cache.beforePullKey(parent, parent.firstDirtyPull),
+        );
 
-        if (this.cache.has(beforePullKey)) {
-          const files = this.cache.read(beforePullKey);
-
+        if (cachedFiles) {
           parent.result = await this.executeCommands(
             parent,
-            files,
+            cachedFiles,
             signal,
             parent.firstDirtyPull,
           );
 
-          this.cache.write(parent.id.toString(), parent.result);
+          this.cache.write(this.cache.pipelineKey(parent), parent.result);
 
           resolve();
           return parent.resultPromise;
         }
-      } else if (this.cache.has(parent.id.toString())) {
-        parent.result = this.cache.read(parent.id.toString());
+      } else {
+        const cachedFiles = this.cache.read(this.cache.pipelineKey(parent));
 
-        resolve();
-        return parent.resultPromise;
+        if (cachedFiles) {
+          parent.result = cachedFiles;
+          resolve();
+          return parent.resultPromise;
+        }
       }
     }
 
@@ -289,9 +292,11 @@ export class PipelineRuntime {
       }
 
       parent.result = await this.executeCommands(parent, files, signal);
-      this.cache?.write(parent.id.toString(), parent.result);
 
-      signal?.throwIfAborted();
+      if (this.cache) {
+        this.cache.write(this.cache.pipelineKey(parent), parent.result);
+      }
+
       resolve();
       return parent.resultPromise;
     }
@@ -302,8 +307,11 @@ export class PipelineRuntime {
         parent.filteredQueryResult,
         signal,
       );
-      this.cache?.write(parent.id.toString(), parent.result);
-      signal?.throwIfAborted();
+
+      if (this.cache) {
+        this.cache.write(this.cache.pipelineKey(parent), parent.result);
+      }
+
       resolve();
       return parent.resultPromise;
     }
@@ -321,39 +329,29 @@ export class PipelineRuntime {
         tagMap[tag].push(file);
       }
 
-      if (this.cache) {
-        for (const tag in tagMap) {
-          let hasCacheMisses = false;
+      for (const tag in tagMap) {
+        let noCacheMisses = true;
 
-          for (const file of tagMap[tag]) {
-            if (parent.cacheMisses.has(file.content)) {
-              hasCacheMisses = true;
-              break;
-            }
-          }
-
-          const cacheKey = parent.id + "@" + tag;
-
-          if (!hasCacheMisses && this.cache.has(cacheKey)) {
-            const files = this.cache.read(parent.id + "@" + tag);
-            parent.result.push(...files);
-          } else {
-            const files = await this.executeCommands(
-              parent,
-              tagMap[tag],
-              signal,
-            );
-            parent.result.push(...files);
+        for (const file of tagMap[tag]) {
+          if (parent.cacheMisses.has(file.content)) {
+            noCacheMisses = false;
+            break;
           }
         }
-      } else {
-        for (const tag in tagMap) {
+
+        const cachedFiles =
+          this.cache &&
+          noCacheMisses &&
+          this.cache.read(this.cache.queryGroupKey(parent, tag));
+
+        if (cachedFiles) {
+          parent.result.push(...cachedFiles);
+        } else {
           const files = await this.executeCommands(parent, tagMap[tag], signal);
           parent.result.push(...files);
         }
       }
 
-      signal?.throwIfAborted();
       resolve();
       return parent.resultPromise;
     }
@@ -361,30 +359,21 @@ export class PipelineRuntime {
     if (QueryPipeline.is(parent)) {
       parent.result = [];
 
-      if (this.cache) {
-        for (const file of parent.filteredQueryResult) {
-          const cacheKey = parent.id + "$" + file.content;
+      for (const file of parent.filteredQueryResult) {
+        const cachedFiles =
+          this.cache &&
+          !parent.cacheMisses.has(file.content) &&
+          this.cache.read(this.cache.queryFileKey(parent, file));
 
-          if (
-            !parent.cacheMisses.has(file.content) &&
-            this.cache.has(cacheKey)
-          ) {
-            const files = this.cache.read(cacheKey);
-            parent.result.push(...files);
-          } else {
-            const files = await this.executeCommands(parent, [file], signal);
-            this.cache.write(cacheKey, files);
-            parent.result.push(...files);
-          }
-        }
-      } else {
-        for (const file of parent.filteredQueryResult) {
+        if (cachedFiles) {
+          parent.result.push(...cachedFiles);
+        } else {
           const files = await this.executeCommands(parent, [file], signal);
+          this.cache?.write(this.cache.queryFileKey(parent, file), files);
           parent.result.push(...files);
         }
       }
 
-      signal?.throwIfAborted();
       resolve();
       return parent.resultPromise;
     }
@@ -416,8 +405,7 @@ export class PipelineRuntime {
 
         case "pull":
           if (this.cache) {
-            const cacheKey = `${parent.id}:before-pull:${i}`;
-            this.cache.write(cacheKey, output);
+            this.cache.write(this.cache.beforePullKey(parent, i), output);
           }
 
           var pulls: Pipeline[] = [command.pipeline];

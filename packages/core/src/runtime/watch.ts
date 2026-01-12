@@ -1,4 +1,4 @@
-import { AsyncSubscription,subscribe } from "@parcel/watcher";
+import { AsyncSubscription, subscribe } from "@parcel/watcher";
 import path from "path";
 
 import { QueryPipeline } from "../pipelines";

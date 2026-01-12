@@ -2,8 +2,9 @@ import { getEventsSince } from "@parcel/watcher";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 
+import { Pipeline } from '../pipelines';
 import { File } from "../types";
-import { collapsePaths,shortHash } from "../utils";
+import { collapsePaths, shortHash } from "../utils";
 
 export class PipelineCache {
   private snapshotCache: Record<string, File[]> = {};
@@ -82,11 +83,27 @@ export class PipelineCache {
     return this.workingCache![id] !== undefined;
   }
 
-  read(id: string): File[] {
+  read(id: string): File[] | undefined {
     return this.workingCache![id];
   }
 
   write(id: string, files: File[]) {
     this.workingCache![id] = files;
+  }
+
+  pipelineKey(pipeline: Pipeline) {
+    return pipeline.id.toString();
+  }
+
+  beforePullKey(pipeline: Pipeline, commandIndex: number) {
+    return pipeline.id + "#" + commandIndex;
+  }
+
+  queryGroupKey(pipeline: Pipeline, tag: string) {
+    return pipeline.id + "@" + tag;
+  }
+
+  queryFileKey(pipeline: Pipeline, file: File) {
+    return pipeline.id + "$" + file.content;
   }
 }
