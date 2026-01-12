@@ -2,6 +2,8 @@
 
 - [x] CLI
 
+- [ ] Return files() pipeline back (i'm too lazy for now)
+
 - [ ] Import aliases support
   - [ ] TSConfig aliases
   - [ ] Custom aliases
