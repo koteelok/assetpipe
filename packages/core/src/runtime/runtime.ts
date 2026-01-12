@@ -210,6 +210,26 @@ export class PipelineRuntime {
     if (QueryPipeline.is(parent)) {
       parent.cacheHit = parent.cacheMisses.size === 0;
     }
+
+    if (InteractivePipeline.is(parent)) {
+      parent.firstDirtyPull = undefined;
+
+      for (let i = 0; i < parent.commands.length; i++) {
+        const command = parent.commands[i];
+        if (command.type === "pull") {
+          this.computeCacheHits(command.pipeline);
+
+          if (
+            InteractivePipeline.is(command.pipeline) &&
+            !command.pipeline.cacheHit
+          ) {
+            if (parent.firstDirtyPull === undefined) {
+              parent.firstDirtyPull = i;
+            }
+          }
+        }
+      }
+    }
   }
 
   private async computeResult(parent: Pipeline, signal?: AbortSignal) {
@@ -226,11 +246,31 @@ export class PipelineRuntime {
       (_resolve) => (resolve = _resolve),
     );
 
-    if (this.cache && parent.cacheHit && this.cache.has(parent.id.toString())) {
-      parent.result = this.cache.read(parent.id.toString());
+    if (this.cache && parent.cacheHit) {
+      if (parent.firstDirtyPull !== undefined) {
+        const beforePullKey = `${parent.id}:before-pull:${parent.firstDirtyPull}`;
 
-      resolve();
-      return parent.resultPromise;
+        if (this.cache.has(beforePullKey)) {
+          const files = this.cache.read(beforePullKey);
+
+          parent.result = await this.executeCommands(
+            parent,
+            files,
+            signal,
+            parent.firstDirtyPull,
+          );
+
+          this.cache.write(parent.id.toString(), parent.result);
+
+          resolve();
+          return parent.resultPromise;
+        }
+      } else if (this.cache.has(parent.id.toString())) {
+        parent.result = this.cache.read(parent.id.toString());
+
+        resolve();
+        return parent.resultPromise;
+      }
     }
 
     signal?.throwIfAborted();
@@ -354,10 +394,11 @@ export class PipelineRuntime {
     parent: InteractivePipeline,
     inputs: File[],
     signal?: AbortSignal,
+    startIndex: number = 0,
   ) {
     let output = inputs;
 
-    for (let i = 0; i < parent.commands.length; i++) {
+    for (let i = startIndex; i < parent.commands.length; i++) {
       const command = parent.commands[i];
 
       signal?.throwIfAborted();
@@ -374,6 +415,11 @@ export class PipelineRuntime {
           break;
 
         case "pull":
+          if (this.cache) {
+            const cacheKey = `${parent.id}:before-pull:${i}`;
+            this.cache.write(cacheKey, output);
+          }
+
           var pulls: Pipeline[] = [command.pipeline];
 
           var offset = 1;

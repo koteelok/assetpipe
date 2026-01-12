@@ -4,6 +4,7 @@ import { Pipeline, PipelineMixin } from "./pipeline";
 export interface InteractivePipeline extends Pipeline {
   commands: PipelineCommand[];
   cacheHit: boolean;
+  firstDirtyPull: number | undefined;
   result: File[];
   resultPromise?: Promise<void>;
 }
@@ -13,6 +14,7 @@ export const InteractivePipeline = new PipelineMixin<InteractivePipeline>(
   (obj, options) => {
     obj.commands = options.commands ?? [];
     obj.cacheHit = false;
+    obj.firstDirtyPull = undefined;
     obj.result = [];
     return obj;
   },
