@@ -1,8 +1,9 @@
-import picomatch from "picomatch";
-import scan from "picomatch/lib/scan";
+import type picomatch from "picomatch";
+import type scan from "picomatch/lib/scan";
 
-import { File } from "../types";
-import { Pipeline, PipelineMixin } from "./pipeline";
+import type { File } from "../types";
+import type { Pipeline } from "./pipeline";
+import { PipelineMixin } from "./pipeline";
 
 export interface IgnorePipeline extends Pipeline {
   query: string[];

@@ -1,6 +1,6 @@
 import { GroupPipeline } from "./group";
+import type { Pipeline } from "./pipeline";
 import { PipelineMixin } from "./pipeline";
-import { Pipeline } from "./pipeline";
 
 export interface ContextPipeline extends GroupPipeline {
   context: string;

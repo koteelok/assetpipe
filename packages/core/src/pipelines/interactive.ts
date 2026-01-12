@@ -1,5 +1,6 @@
-import { File, Transformer } from "../types";
-import { Pipeline, PipelineMixin } from "./pipeline";
+import type { File, Transformer } from "../types";
+import type { Pipeline } from "./pipeline";
+import { PipelineMixin } from "./pipeline";
 
 export interface InteractivePipeline extends Pipeline {
   commands: PipelineCommand[];

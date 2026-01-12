@@ -2,8 +2,8 @@ import { getEventsSince } from "@parcel/watcher";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 
-import { Pipeline } from '../pipelines';
-import { File } from "../types";
+import type { Pipeline } from "../pipelines";
+import type { File } from "../types";
 import { collapsePaths, shortHash } from "../utils";
 
 export class PipelineCache {

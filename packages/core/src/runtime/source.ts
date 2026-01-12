@@ -1,7 +1,8 @@
 import { createJiti } from "jiti";
 import path from "path";
 
-import { Pipeline, PipelineMixin } from "../pipelines";
+import type { Pipeline } from "../pipelines";
+import { PipelineMixin } from "../pipelines";
 import { parseImportsDeep } from "../utils";
 
 interface PipelineSourceOptions {

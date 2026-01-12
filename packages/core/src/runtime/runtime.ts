@@ -2,18 +2,19 @@ import { readdir, stat } from "fs/promises";
 import path from "path";
 import picomatch from "picomatch";
 
+import type { Pipeline } from "../pipelines";
 import {
   ContextPipeline,
   GroupPipeline,
   IgnorePipeline,
   InteractivePipeline,
-  Pipeline,
   QueryPipeline,
 } from "../pipelines";
-import { File } from "../types";
+import type { File } from "../types";
 import { clonePipeline } from "../utils";
-import { PipelineCache } from "./cache";
-import { createPipelineRuntime, CreateRuntimeOptions } from "./factory";
+import type { PipelineCache } from "./cache";
+import type { CreateRuntimeOptions } from "./factory";
+import { createPipelineRuntime } from "./factory";
 
 export class PipelineRuntime {
   public root: Pipeline;

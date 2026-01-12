@@ -1,4 +1,4 @@
-import { Pipeline } from "../pipelines";
+import type { Pipeline } from "../pipelines";
 import { PipelineCache } from "./cache";
 import { PipelineRuntime } from "./runtime";
 import { PipelineSource } from "./source";

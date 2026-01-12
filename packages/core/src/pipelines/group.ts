@@ -1,6 +1,6 @@
 import { InteractivePipeline } from "./interactive";
+import type { Pipeline } from "./pipeline";
 import { PipelineMixin } from "./pipeline";
-import { Pipeline } from "./pipeline";
 
 export interface GroupPipeline extends InteractivePipeline {
   children: Pipeline[];

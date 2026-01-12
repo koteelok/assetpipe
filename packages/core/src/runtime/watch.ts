@@ -1,11 +1,12 @@
-import { AsyncSubscription, subscribe } from "@parcel/watcher";
+import type { AsyncSubscription } from "@parcel/watcher";
+import { subscribe } from "@parcel/watcher";
 import path from "path";
 
-import { QueryPipeline } from "../pipelines";
+import type { QueryPipeline } from "../pipelines";
 import { collapsePaths, debounceAsync } from "../utils";
-import { PipelineCache } from "./cache";
+import type { PipelineCache } from "./cache";
 import { createPipelineRuntime } from "./factory";
-import { PipelineRuntime } from "./runtime";
+import type { PipelineRuntime } from "./runtime";
 
 export interface PipelineWatchOptions {
   entry: string;

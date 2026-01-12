@@ -1,4 +1,5 @@
-import { Pipeline, PipelineMixin } from "../pipelines/pipeline";
+import type { Pipeline } from "../pipelines/pipeline";
+import { PipelineMixin } from "../pipelines/pipeline";
 
 function cloneDeep(
   source: any,

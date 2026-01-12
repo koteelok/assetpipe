@@ -1,7 +1,7 @@
-import picomatch from "picomatch";
-import scan from "picomatch/lib/scan";
+import type picomatch from "picomatch";
+import type scan from "picomatch/lib/scan";
 
-import { File } from "../types";
+import type { File } from "../types";
 import { InteractivePipeline } from "./interactive";
 import { PipelineMixin } from "./pipeline";
 
