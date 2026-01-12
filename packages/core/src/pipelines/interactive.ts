@@ -1,20 +1,18 @@
 import { File, Transformer } from "../types";
 import { Pipeline, PipelineMixin } from "./pipeline";
 
-export interface InteractivePipelineOptions {
-  commands?: PipelineCommand[];
-}
-
 export interface InteractivePipeline extends Pipeline {
   commands: PipelineCommand[];
+  cacheHit: boolean;
   result: File[];
   resultPromise?: Promise<void>;
 }
 
-export const InteractivePipeline = new PipelineMixin(
+export const InteractivePipeline = new PipelineMixin<InteractivePipeline>(
   "InteractivePipeline",
-  (obj: InteractivePipeline, options: InteractivePipelineOptions) => {
+  (obj, options) => {
     obj.commands = options.commands ?? [];
+    obj.cacheHit = false;
     obj.result = [];
     return obj;
   }

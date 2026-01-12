@@ -1,21 +1,18 @@
-import { InteractivePipeline, InteractivePipelineOptions } from "./interactive";
+import { InteractivePipeline } from "./interactive";
 import { PipelineMixin } from "./pipeline";
 import { Pipeline } from "./pipeline";
-
-export interface GroupPipelineOptions extends InteractivePipelineOptions {
-  children: Pipeline[];
-}
 
 export interface GroupPipeline extends InteractivePipeline {
   children: Pipeline[];
 }
 
-export const GroupPipeline = new PipelineMixin(
+export const GroupPipeline = new PipelineMixin<GroupPipeline>(
   "GroupPipeline",
-  (obj: GroupPipeline, options: GroupPipelineOptions) => {
+  (obj, options) => {
     obj.commands = options.commands ?? [];
-    obj.result = [];
-    obj.children = options.children;
+    obj.cacheHit = false;
+    obj.result = options.result ?? [];
+    obj.children = options.children ?? [];
     return obj;
   },
   InteractivePipeline

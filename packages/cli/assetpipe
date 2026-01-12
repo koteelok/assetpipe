@@ -3,8 +3,7 @@
 
 var path = require("path");
 var { Command } = require("commander");
-var { createJiti } = require("jiti");
-var { PipelineExecutor } = require("@assetpipe/core/runtime");
+var { PipelineWatcher, createPipelineRuntime } = require("@assetpipe/core/runtime");
 
 var program = new Command();
 
@@ -22,12 +21,34 @@ program.parse();
 var [PIPELINE_PATH] = program.args;
 var options = program.opts();
 
-const jiti = createJiti(__filename);
+async function main() {
+  if (options.watch) {
+    const executor = new PipelineWatcher({
+      entry: PIPELINE_PATH,
+      outputDirectory: options.output,
+      cacheDirectory: options.cache,
+    });
+    
+    executor.spawn();
+    return;
+  }
 
-jiti.import(path.resolve(PIPELINE_PATH), { default: true }).then((pipeline) => {
-  const executor = new PipelineExecutor(pipeline);
-
-  executor.execute().then(() => {
-    console.log(executor.root);
+  const { runtime } = await createPipelineRuntime({
+    entry: PIPELINE_PATH,
+    outputDirectory: options.output,
+    cacheDirectory: options.cache,
   });
-});
+
+  await runtime.executeAllQueries();
+
+  const files = await runtime.computePipelineResults();
+
+  if (files) {
+    console.log("CLI", files);
+  }
+}
+
+main();
+// executor.execute().then(() => {
+//   console.log(executor.root);
+// });

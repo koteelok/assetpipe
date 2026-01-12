@@ -1,5 +1,6 @@
 import * as mixins from "@assetpipe/core/pipelines";
-import { ArrayOr, File, QueryLike, Transformer } from "@assetpipe/core/types";
+import { ArrayOr, File, Transformer } from "@assetpipe/core/types";
+import { QueryLike, queryArray } from "./query";
 
 // Fake API-like classes to make user comfortable lol
 
@@ -50,19 +51,25 @@ class QueryPipeline extends InteractivePipeline {}
 export const select = {
   parallel(query: QueryLike) {
     const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mixin(pipeline, { query });
+    mixins.QueryPipeline.mix(pipeline, { query: queryArray(query) });
     return pipeline;
   },
 
   bulk(query: QueryLike) {
     const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mixin(pipeline, { query, bulk: true });
+    mixins.QueryPipeline.mix(pipeline, {
+      query: queryArray(query),
+      bulk: true,
+    });
     return pipeline;
   },
 
   groupBy(query: QueryLike, callback: (file: File) => string) {
     const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mixin(pipeline, { query, groupBy: callback });
+    mixins.QueryPipeline.mix(pipeline, {
+      query: queryArray(query),
+      groupBy: callback,
+    });
     return pipeline;
   },
 };
@@ -70,20 +77,27 @@ export const select = {
 export const claim = {
   parallel(query: QueryLike) {
     const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mixin(pipeline, { query, claim: true });
+    mixins.QueryPipeline.mix(pipeline, {
+      query: queryArray(query),
+      claim: true,
+    });
     return pipeline;
   },
 
   bulk(query: QueryLike) {
     const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mixin(pipeline, { query, bulk: true, claim: true });
+    mixins.QueryPipeline.mix(pipeline, {
+      query: queryArray(query),
+      bulk: true,
+      claim: true,
+    });
     return pipeline;
   },
 
   groupBy(query: QueryLike, callback: (file: File) => string) {
     const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mixin(pipeline, {
-      query,
+    mixins.QueryPipeline.mix(pipeline, {
+      query: queryArray(query),
       groupBy: callback,
       claim: true,
     });
@@ -95,15 +109,7 @@ class IgnorePipeline extends Pipeline {}
 
 export function ignore(query: QueryLike) {
   const pipeline = new IgnorePipeline();
-  mixins.IgnorePipeline.mixin(pipeline, { query });
-  return pipeline;
-}
-
-class FilesPipeline extends InteractivePipeline {}
-
-export function files(files: File[]) {
-  const pipeline = new FilesPipeline();
-  mixins.FilesPipeline.mixin(pipeline, { files });
+  mixins.IgnorePipeline.mix(pipeline, { query: queryArray(query) });
   return pipeline;
 }
 
@@ -111,7 +117,7 @@ class GroupPipeline extends InteractivePipeline {}
 
 export function group(...pipelines: ArrayOr<Pipeline>[]) {
   const pipeline = new GroupPipeline();
-  mixins.GroupPipeline.mixin(pipeline, { children: pipelines.flat() as any[] });
+  mixins.GroupPipeline.mix(pipeline, { children: pipelines.flat() as any[] });
   return pipeline;
 }
 
@@ -119,7 +125,7 @@ class ContextPipeline extends GroupPipeline {}
 
 export function context(root: string, ...pipelines: ArrayOr<Pipeline>[]) {
   const pipeline = new ContextPipeline();
-  mixins.ContextPipeline.mixin(pipeline, {
+  mixins.ContextPipeline.mix(pipeline, {
     context: root,
     children: pipelines.flat() as any[],
   });

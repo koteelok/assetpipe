@@ -41,7 +41,11 @@
     "dev": "tsdown --watch"
   },
   "dependencies": {
+    "@parcel/watcher": "^2.5.1",
     "@types/picomatch": "^4.0.2",
+    "jiti": "^2.6.1",
+    "oxc-parser": "^0.107.0",
+    "oxc-resolver": "^11.16.2",
     "picomatch": "^4.0.3"
   },
   "devDependencies": {

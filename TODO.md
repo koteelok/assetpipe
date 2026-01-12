@@ -2,11 +2,15 @@
 
 - [x] CLI
 
+- [ ] Import aliases support
+  - [ ] TSConfig aliases
+  - [ ] Custom aliases
+
 - [ ] Watch mode (CLI only?)
 
 - [ ] Caching (CLI only?)
-  - [ ] Don't load files into memory
   - [ ] Skip execution
+  - [ ] Cleanup unused temp files
 
 - [ ] Vite integration
   - [ ] access resulted assets via module imports

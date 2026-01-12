@@ -1,18 +1,17 @@
 export interface Pipeline {
-  id: string;
+  id: number;
 }
 
-export class PipelineMixin<TOptions extends any, TReturn extends Pipeline> {
-  static instances: PipelineMixin<any, any>[] = [];
-  static optionsKey = "$Options";
-  static rootKey = "$isPipeline";
+export class PipelineMixin<TSchema extends Pipeline> {
+  static instances: PipelineMixin<any>[] = [];
+  static mixinKey = "$isPipeline";
   private instanceKey: string;
   private parentKeys: string[] = [];
 
   constructor(
     private name: string,
-    private applyOptions: (obj: any, options: TOptions) => TReturn,
-    private parent?: PipelineMixin<any, any>
+    private applyOptions: (obj: TSchema, options: Partial<TSchema>) => TSchema,
+    private parent?: PipelineMixin<any>
   ) {
     this.instanceKey = `$is${this.name}`;
     let current = parent;
@@ -23,24 +22,23 @@ export class PipelineMixin<TOptions extends any, TReturn extends Pipeline> {
     PipelineMixin.instances.push(this);
   }
 
-  static is(obj: any): obj is Pipeline {
-    return obj[PipelineMixin.rootKey] === true;
+  static is(obj: any): obj is Pipeline & { [PipelineMixin.mixinKey]: PipelineMixin<Pipeline> } {
+    return obj[PipelineMixin.mixinKey] !== undefined;
   }
 
-  is(obj: any): obj is TReturn & { [PipelineMixin.optionsKey]: TOptions } {
+  is(obj: any): obj is TSchema & { [PipelineMixin.mixinKey]: PipelineMixin<TSchema> } {
     return obj[this.instanceKey] === true;
   }
 
-  mixin(obj: any, options: TOptions) {
+  mix(obj: any, options: Partial<TSchema>) {
     for (const mixin of PipelineMixin.instances) {
       obj[mixin.instanceKey] = false;
     }
-    obj[PipelineMixin.rootKey] = true;
+    obj[PipelineMixin.mixinKey] = this;
     obj[this.instanceKey] = true;
     for (const parentSymbol of this.parentKeys) {
       obj[parentSymbol] = true;
     }
-    obj[PipelineMixin.optionsKey] = options;
     return this.applyOptions(obj, options);
   }
 }
