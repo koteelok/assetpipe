@@ -1,5 +1,5 @@
-import path from "path";
 import { readdir, stat } from "fs/promises";
+import path from "path";
 import picomatch from "picomatch";
 
 import {
@@ -7,11 +7,11 @@ import {
   GroupPipeline,
   IgnorePipeline,
   InteractivePipeline,
-  QueryPipeline,
   Pipeline,
+  QueryPipeline,
 } from "../pipelines";
-import { clonePipeline } from "../utils";
 import { File } from "../types";
+import { clonePipeline } from "../utils";
 import { PipelineCache } from "./cache";
 import { createPipelineRuntime, CreateRuntimeOptions } from "./factory";
 
@@ -54,7 +54,7 @@ export class PipelineRuntime {
       if (!this.queryPipelines.includes(parent)) {
         for (const query of parent.query) {
           const state = picomatch.scan(
-            path.join(parent.context, query).replace(/\\/g, "/")
+            path.join(parent.context, query).replace(/\\/g, "/"),
           );
           const matcher = picomatch(state.glob, {
             windows: process.platform === "win32",
@@ -102,12 +102,12 @@ export class PipelineRuntime {
       if (state.glob === "") {
         const exists = await stat(basePath).then(
           () => true,
-          () => false
+          () => false,
         );
 
         if (!exists) {
           throw new Error(
-            `[${query}] Query error. File ${basePath} not found.`
+            `[${query}] Query error. File ${basePath} not found.`,
           );
         }
 
@@ -182,7 +182,7 @@ export class PipelineRuntime {
 
     for (const pipeline of this.queryPipelines) {
       pipeline.filteredQueryResult = pipeline.queryResult.filter(
-        (file) => !occupiedFiles.has(file.content)
+        (file) => !occupiedFiles.has(file.content),
       );
 
       if (pipeline.claim) {
@@ -223,7 +223,7 @@ export class PipelineRuntime {
 
     let resolve!: (result: void) => void;
     parent.resultPromise = new Promise<void>(
-      (_resolve) => (resolve = _resolve)
+      (_resolve) => (resolve = _resolve),
     );
 
     if (this.cache && parent.cacheHit && this.cache.has(parent.id.toString())) {
@@ -236,10 +236,10 @@ export class PipelineRuntime {
     signal?.throwIfAborted();
 
     if (GroupPipeline.is(parent)) {
-      let files: File[] = [];
+      const files: File[] = [];
 
       await Promise.all(
-        parent.children.map((child) => this.computeResult(child, signal))
+        parent.children.map((child) => this.computeResult(child, signal)),
       );
 
       for (const child of parent.children) {
@@ -260,7 +260,7 @@ export class PipelineRuntime {
       parent.result = await this.executeCommands(
         parent,
         parent.filteredQueryResult,
-        signal
+        signal,
       );
       this.cache?.write(parent.id.toString(), parent.result);
       signal?.throwIfAborted();
@@ -301,7 +301,7 @@ export class PipelineRuntime {
             const files = await this.executeCommands(
               parent,
               tagMap[tag],
-              signal
+              signal,
             );
             parent.result.push(...files);
           }
@@ -353,7 +353,7 @@ export class PipelineRuntime {
   private async executeCommands(
     parent: InteractivePipeline,
     inputs: File[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ) {
     let output = inputs;
 
@@ -369,15 +369,15 @@ export class PipelineRuntime {
 
         case "branch":
           output = await Promise.all(
-            command.transformers.map((transformer) => transformer(output))
+            command.transformers.map((transformer) => transformer(output)),
           ).then((results) => results.flat());
           break;
 
         case "pull":
-          const pulls: Pipeline[] = [command.pipeline];
+          var pulls: Pipeline[] = [command.pipeline];
 
-          let offset = 1;
-          let nextCommand = parent.commands[i + offset];
+          var offset = 1;
+          var nextCommand = parent.commands[i + offset];
           while (nextCommand && nextCommand.type === "pull") {
             pulls.push(nextCommand.pipeline);
             offset++;
@@ -392,7 +392,7 @@ export class PipelineRuntime {
               if (InteractivePipeline.is(pipeline)) {
                 output.push(...pipeline.result);
               }
-            })
+            }),
           );
           break;
       }

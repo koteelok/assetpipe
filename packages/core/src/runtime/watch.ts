@@ -1,11 +1,11 @@
-import { subscribe, AsyncSubscription } from "@parcel/watcher";
+import { AsyncSubscription,subscribe } from "@parcel/watcher";
 import path from "path";
 
-import { collapsePaths, debounceAsync } from "../utils";
 import { QueryPipeline } from "../pipelines";
+import { collapsePaths, debounceAsync } from "../utils";
 import { PipelineCache } from "./cache";
-import { PipelineRuntime } from "./runtime";
 import { createPipelineRuntime } from "./factory";
+import { PipelineRuntime } from "./runtime";
 
 export interface PipelineWatchOptions {
   entry: string;
@@ -43,7 +43,9 @@ export class PipelineWatcher {
   private pipelineSubscriptions?: AsyncSubscription[];
 
   private async subscribeToPipeline() {
-    const { runtime, cache, scriptFiles } = await createPipelineRuntime(this.options);
+    const { runtime, cache, scriptFiles } = await createPipelineRuntime(
+      this.options,
+    );
 
     this.runtime = runtime;
     this.cache = cache;
@@ -58,7 +60,7 @@ export class PipelineWatcher {
               break;
             }
           }
-        })
+        }),
       );
     }
 
@@ -95,7 +97,7 @@ export class PipelineWatcher {
         }
       } else {
         ignore.push(
-          path.join(pipeline.context, pipeline.query).replace(/\\/g, "/")
+          path.join(pipeline.context, pipeline.query).replace(/\\/g, "/"),
         );
       }
     }
@@ -136,8 +138,8 @@ export class PipelineWatcher {
                 }
               }
             },
-            subscriptionOptions
-          )
+            subscriptionOptions,
+          ),
         );
       }
     }
@@ -178,7 +180,7 @@ export class PipelineWatcher {
 
     try {
       const files = await this.runtime.computePipelineResults(
-        abortController.signal
+        abortController.signal,
       );
 
       if (this.cache) {

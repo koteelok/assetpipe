@@ -11,7 +11,7 @@ export class PipelineMixin<TSchema extends Pipeline> {
   constructor(
     private name: string,
     private applyOptions: (obj: TSchema, options: Partial<TSchema>) => TSchema,
-    private parent?: PipelineMixin<any>
+    private parent?: PipelineMixin<any>,
   ) {
     this.instanceKey = `$is${this.name}`;
     let current = parent;
@@ -22,11 +22,15 @@ export class PipelineMixin<TSchema extends Pipeline> {
     PipelineMixin.instances.push(this);
   }
 
-  static is(obj: any): obj is Pipeline & { [PipelineMixin.mixinKey]: PipelineMixin<Pipeline> } {
+  static is(
+    obj: any,
+  ): obj is Pipeline & { [PipelineMixin.mixinKey]: PipelineMixin<Pipeline> } {
     return obj[PipelineMixin.mixinKey] !== undefined;
   }
 
-  is(obj: any): obj is TSchema & { [PipelineMixin.mixinKey]: PipelineMixin<TSchema> } {
+  is(
+    obj: any,
+  ): obj is TSchema & { [PipelineMixin.mixinKey]: PipelineMixin<TSchema> } {
     return obj[this.instanceKey] === true;
   }
 

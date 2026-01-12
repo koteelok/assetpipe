@@ -1,8 +1,8 @@
-import { File, QueryLike } from "../types";
-import { Pipeline, PipelineMixin } from "./pipeline";
-
 import picomatch from "picomatch";
 import scan from "picomatch/lib/scan";
+
+import { File } from "../types";
+import { Pipeline, PipelineMixin } from "./pipeline";
 
 export interface IgnorePipeline extends Pipeline {
   query: string[];
@@ -19,5 +19,5 @@ export const IgnorePipeline = new PipelineMixin<IgnorePipeline>(
     obj.queryResult = [];
     obj.context = "";
     return obj;
-  }
+  },
 );

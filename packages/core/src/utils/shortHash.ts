@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { createHash } from "crypto";
 
 export function shortHash(input: string, bytes = 16) {
   const hash = createHash("sha256").update(input).digest();

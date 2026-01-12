@@ -15,7 +15,7 @@ export const InteractivePipeline = new PipelineMixin<InteractivePipeline>(
     obj.cacheHit = false;
     obj.result = [];
     return obj;
-  }
+  },
 );
 
 export type PipelineCommand =

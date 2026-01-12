@@ -17,7 +17,7 @@ export interface CreateRuntimeResult {
 }
 
 export async function createPipelineRuntime(
-  options: CreateRuntimeOptions
+  options: CreateRuntimeOptions,
 ): Promise<CreateRuntimeResult> {
   const source = new PipelineSource(options);
 
@@ -30,7 +30,7 @@ export async function createPipelineRuntime(
     cache = new PipelineCache(
       options.entry,
       scriptFiles,
-      options.cacheDirectory
+      options.cacheDirectory,
     );
   }
 

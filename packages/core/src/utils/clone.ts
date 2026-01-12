@@ -1,6 +1,9 @@
 import { Pipeline, PipelineMixin } from "../pipelines/pipeline";
 
-function cloneDeep(source: any, pipelineMap = new Map<Pipeline, Pipeline>()): any {  
+function cloneDeep(
+  source: any,
+  pipelineMap = new Map<Pipeline, Pipeline>(),
+): any {
   if (source && PipelineMixin.is(source)) {
     let clone = pipelineMap.get(source);
     if (clone) return clone;

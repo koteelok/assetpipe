@@ -5,6 +5,12 @@
   "workspaces": [
     "packages/*"
   ],
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --check",
+    "format:fix": "prettier . --write"
+  },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@nx/eslint": "^21.5.3",

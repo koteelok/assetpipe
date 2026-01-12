@@ -1,6 +1,7 @@
 import * as mixins from "@assetpipe/core/pipelines";
 import { ArrayOr, File, Transformer } from "@assetpipe/core/types";
-import { QueryLike, queryArray } from "./query";
+
+import { queryArray,QueryLike } from "./query";
 
 // Fake API-like classes to make user comfortable lol
 
@@ -32,7 +33,7 @@ class InteractivePipeline {
     for (const pipeline of pipelines) {
       if (!mixins.InteractivePipeline.is(pipeline)) {
         throw new Error(
-          `Passed argument ${pipeline} is not actually a pipeline!`
+          `Passed argument ${pipeline} is not actually a pipeline!`,
         );
       }
 

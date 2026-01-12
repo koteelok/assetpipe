@@ -6,11 +6,11 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "ts-defs"] },
+  { ignores: ["**/dist", "**/node_modules"] },
   eslint.configs.recommended,
   tseslint.configs.recommended,
   {
-    files: ["packages/runtime/**/*.ts", "packages/**/rolldown.config.ts"],
+    files: ["packages/**/*.{ts,js}"],
     languageOptions: {
       globals: globals.node,
     },
@@ -42,5 +42,5 @@ export default tseslint.config(
       "simple-import-sort/exports": "error",
     },
   },
-  eslintConfigPrettier
+  eslintConfigPrettier,
 );

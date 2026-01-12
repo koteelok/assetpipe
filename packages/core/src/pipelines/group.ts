@@ -15,5 +15,5 @@ export const GroupPipeline = new PipelineMixin<GroupPipeline>(
     obj.children = options.children ?? [];
     return obj;
   },
-  InteractivePipeline
+  InteractivePipeline,
 );

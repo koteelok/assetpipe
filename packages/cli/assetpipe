@@ -3,7 +3,10 @@
 
 var path = require("path");
 var { Command } = require("commander");
-var { PipelineWatcher, createPipelineRuntime } = require("@assetpipe/core/runtime");
+var {
+  PipelineWatcher,
+  createPipelineRuntime,
+} = require("@assetpipe/core/runtime");
 
 var program = new Command();
 
@@ -28,7 +31,7 @@ async function main() {
       outputDirectory: options.output,
       cacheDirectory: options.cache,
     });
-    
+
     executor.spawn();
     return;
   }

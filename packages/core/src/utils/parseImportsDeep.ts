@@ -31,7 +31,7 @@ const visitor = new Visitor({
 async function parseImports(
   resolver: ResolverFactory,
   filename: string,
-  resolved: Set<string>
+  resolved: Set<string>,
 ) {
   if (resolved.has(filename)) return;
   resolved.add(filename);
@@ -56,7 +56,7 @@ export async function parseImportsDeep(filename: string) {
   await parseImports(
     ResolverFactory.default(),
     path.resolve(filename),
-    resolved
+    resolved,
   );
   return resolved;
 }

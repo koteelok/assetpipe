@@ -1,9 +1,9 @@
-import path from "path";
-import { mkdir, readFile, writeFile } from "fs/promises";
 import { getEventsSince } from "@parcel/watcher";
+import { mkdir, readFile, writeFile } from "fs/promises";
+import path from "path";
 
 import { File } from "../types";
-import { shortHash, collapsePaths } from "../utils";
+import { collapsePaths,shortHash } from "../utils";
 
 export class PipelineCache {
   private snapshotCache: Record<string, File[]> = {};
@@ -13,7 +13,7 @@ export class PipelineCache {
   constructor(
     private entry: string,
     private sourceFiles: Set<string>,
-    private cacheDirectory: string
+    private cacheDirectory: string,
   ) {}
 
   async load() {
@@ -24,7 +24,7 @@ export class PipelineCache {
       this.resultsPath = path.join(this.cacheDirectory, "results", entryHash);
 
       this.snapshotCache = JSON.parse(
-        await readFile(this.resultsPath, "utf-8")
+        await readFile(this.resultsPath, "utf-8"),
       );
       this.workingCache = structuredClone(this.snapshotCache);
 
@@ -35,7 +35,7 @@ export class PipelineCache {
         const snapshotPath = path.resolve(
           this.cacheDirectory,
           "snapshots",
-          shortHash(directory)
+          shortHash(directory),
         );
         const events = await getEventsSince(directory, snapshotPath);
 
@@ -64,7 +64,7 @@ export class PipelineCache {
     await writeFile(
       this.resultsPath,
       JSON.stringify(this.workingCache),
-      "utf-8"
+      "utf-8",
     );
     this.snapshotCache = structuredClone(this.workingCache);
   }

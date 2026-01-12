@@ -1,8 +1,8 @@
-import path from "path";
 import { createJiti } from "jiti";
+import path from "path";
 
-import { parseImportsDeep } from "../utils";
 import { Pipeline, PipelineMixin } from "../pipelines";
+import { parseImportsDeep } from "../utils";
 
 interface PipelineSourceOptions {
   entry: string;
@@ -29,17 +29,18 @@ export class PipelineSource {
 
   async evaluate() {
     const jiti = createJiti(__filename, {
-      fsCache: this.cacheDirectory ? path.join(this.cacheDirectory, "jiti") : false,
+      fsCache: this.cacheDirectory
+        ? path.join(this.cacheDirectory, "jiti")
+        : false,
     });
 
-    const pipeline = await jiti.import<Pipeline>(
-      path.resolve(this.entry),
-      { default: true }
-    );
+    const pipeline = await jiti.import<Pipeline>(path.resolve(this.entry), {
+      default: true,
+    });
 
     if (!PipelineMixin.is(pipeline)) {
       throw new Error(
-        `Default export in file is not a pipeline. (${this.entry})`
+        `Default export in file is not a pipeline. (${this.entry})`,
       );
     }
 

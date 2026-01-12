@@ -1,9 +1,9 @@
+import picomatch from "picomatch";
+import scan from "picomatch/lib/scan";
+
 import { File } from "../types";
 import { InteractivePipeline } from "./interactive";
 import { PipelineMixin } from "./pipeline";
-
-import picomatch from "picomatch";
-import scan from "picomatch/lib/scan";
 
 export interface QueryPipeline extends InteractivePipeline {
   query: string[];
@@ -38,5 +38,5 @@ export const QueryPipeline = new PipelineMixin<QueryPipeline>(
     obj.groupBy = options.groupBy;
     return obj;
   },
-  InteractivePipeline
+  InteractivePipeline,
 );
