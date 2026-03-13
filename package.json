@@ -6,6 +6,8 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "nx run-many -t build -tui",
+    "test": "vitest run",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --check",
@@ -24,6 +26,7 @@
     "prettier": "^3.6.2",
     "tsdown": "^0.15.6",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.52.0"
+    "typescript-eslint": "^8.52.0",
+    "vitest": "^4.0.18"
   }
 }

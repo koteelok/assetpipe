@@ -13,24 +13,20 @@ import {
 import type { File } from "../types";
 import { clonePipeline } from "../utils";
 import type { PipelineCache } from "./cache";
-import type { CreateRuntimeOptions } from "./factory";
-import { createPipelineRuntime } from "./factory";
 
-export class PipelineRuntime {
+declare global {
+  var CURRENT_CACHE: PipelineCache | undefined;
+}
+
+export class PipelineExecutor {
   public root: Pipeline;
   public cache?: PipelineCache;
   public queryPipelines: QueryPipeline[] = [];
   public ignorePipelines: IgnorePipeline[] = [];
   public interactivePipelines: InteractivePipeline[] = [];
 
-  static async from(options: CreateRuntimeOptions) {
-    const { runtime } = await createPipelineRuntime(options);
-    return runtime;
-  }
-
-  constructor(pipeline: Pipeline, cache?: PipelineCache) {
+  constructor(pipeline: Pipeline) {
     this.root = clonePipeline(pipeline);
-    this.cache = cache;
     this.prepassPipeline(this.root);
   }
 
@@ -93,12 +89,15 @@ export class PipelineRuntime {
     return counter;
   }
 
-  public async executeQuery(pipeline: QueryPipeline | IgnorePipeline) {
+  public async executeQuery(
+    pipeline: QueryPipeline | IgnorePipeline,
+    cwd = process.cwd(),
+  ) {
     pipeline.queryResult = [];
 
     for (const query of pipeline.query) {
       const state = pipeline.states[query];
-      const basePath = path.resolve(process.cwd(), state.base);
+      const basePath = path.resolve(cwd, state.base);
 
       if (state.glob === "") {
         const exists = await stat(basePath).then(
@@ -126,7 +125,7 @@ export class PipelineRuntime {
         withFileTypes: true,
       }).catch(() => []);
 
-      if (dirents.length === 0) return [];
+      if (dirents.length === 0) continue;
 
       const matcher = pipeline.matchers[query];
 
@@ -147,11 +146,18 @@ export class PipelineRuntime {
     }
   }
 
-  public async executeAllQueries() {
-    return Promise.all([
-      ...this.queryPipelines.map((pipeline) => this.executeQuery(pipeline)),
-      ...this.ignorePipelines.map((pipeline) => this.executeQuery(pipeline)),
-    ]);
+  public async executeAllQueries(cwd?: string) {
+    const pendingQueries: Promise<void>[] = [];
+
+    for (const pipeline of this.queryPipelines) {
+      pendingQueries.push(this.executeQuery(pipeline, cwd));
+    }
+
+    for (const pipeline of this.ignorePipelines) {
+      pendingQueries.push(this.executeQuery(pipeline, cwd));
+    }
+
+    return Promise.all(pendingQueries);
   }
 
   public async computePipelineResults(signal?: AbortSignal) {
@@ -159,7 +165,8 @@ export class PipelineRuntime {
       this.filterAllQueryResults();
 
       if (this.cache) {
-        this.computeCacheHits(this.root);
+        this.waterfallCacheHits(this.root);
+        globalThis.CURRENT_CACHE = this.cache;
       }
 
       for (const pipeline of this.interactivePipelines) {
@@ -167,6 +174,10 @@ export class PipelineRuntime {
       }
 
       await this.computeResult(this.root, signal);
+
+      if (this.cache) {
+        globalThis.CURRENT_CACHE = undefined;
+      }
 
       return this.root.result;
     }
@@ -194,12 +205,12 @@ export class PipelineRuntime {
     }
   }
 
-  private async computeCacheHits(parent: Pipeline) {
+  private async waterfallCacheHits(parent: Pipeline) {
     if (GroupPipeline.is(parent)) {
       parent.cacheHit = true;
 
       for (const child of parent.children) {
-        this.computeCacheHits(child);
+        this.waterfallCacheHits(child);
 
         if (InteractivePipeline.is(child) && !child.cacheHit) {
           parent.cacheHit = false;
@@ -209,7 +220,7 @@ export class PipelineRuntime {
     }
 
     if (QueryPipeline.is(parent)) {
-      parent.cacheHit = parent.cacheMisses.size === 0;
+      parent.cacheHit = parent.cacheHit || parent.cacheMisses.size === 0;
     }
 
     if (InteractivePipeline.is(parent)) {
@@ -218,7 +229,7 @@ export class PipelineRuntime {
       for (let i = 0; i < parent.commands.length; i++) {
         const command = parent.commands[i];
         if (command.type === "pull") {
-          this.computeCacheHits(command.pipeline);
+          this.waterfallCacheHits(command.pipeline);
 
           if (
             InteractivePipeline.is(command.pipeline) &&
@@ -294,9 +305,7 @@ export class PipelineRuntime {
 
       parent.result = await this.executeCommands(parent, files, signal);
 
-      if (this.cache) {
-        this.cache.write(this.cache.pipelineKey(parent), parent.result);
-      }
+      this.cache?.write(this.cache.pipelineKey(parent), parent.result);
 
       resolve();
       return parent.resultPromise;
@@ -309,9 +318,7 @@ export class PipelineRuntime {
         signal,
       );
 
-      if (this.cache) {
-        this.cache.write(this.cache.pipelineKey(parent), parent.result);
-      }
+      this.cache?.write(this.cache.pipelineKey(parent), parent.result);
 
       resolve();
       return parent.resultPromise;
@@ -405,9 +412,7 @@ export class PipelineRuntime {
           break;
 
         case "pull":
-          if (this.cache) {
-            this.cache.write(this.cache.beforePullKey(parent, i), output);
-          }
+          this.cache?.write(this.cache.beforePullKey(parent, i), output);
 
           var pulls: Pipeline[] = [command.pipeline];
 

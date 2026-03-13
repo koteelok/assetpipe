@@ -4,3 +4,5 @@ dist
 .DS_Store
 bun.lock
 package-lock.json
+test/**/cache
+test/**/result

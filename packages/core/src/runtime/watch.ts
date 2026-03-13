@@ -4,9 +4,8 @@ import path from "path";
 
 import type { QueryPipeline } from "../pipelines";
 import { collapsePaths, debounceAsync } from "../utils";
-import type { PipelineCache } from "./cache";
-import { createPipelineRuntime } from "./factory";
-import type { PipelineRuntime } from "./runtime";
+import type { PipelineExecutor } from "./executor";
+import { parsePipelineFile } from "./parse";
 
 export interface PipelineWatchOptions {
   entry: string;
@@ -22,8 +21,8 @@ export class PipelineWatcher {
   async spawn() {
     if (this.active) return;
     this.active = true;
-    this.onPipelineChange.enable();
-    await this.subscribeToPipeline();
+    this.onSourceCodeChange.enable();
+    await this.subscribeToSourceCode();
     await this.subscribeToInputs();
     await this.run();
     this.onInputChange.enable();
@@ -34,30 +33,26 @@ export class PipelineWatcher {
     this.active = false;
     await Promise.all([
       this.onInputChange.disable(),
-      this.unsubscribeFromPipeline(),
+      this.unsubscribeFromSourceCode(),
       this.unsubscribeFromInputs(),
     ]);
   }
 
-  private runtime!: PipelineRuntime;
-  private cache?: PipelineCache;
-  private pipelineSubscriptions?: AsyncSubscription[];
+  private executor!: PipelineExecutor;
+  private sourceCodeSubscriptions?: AsyncSubscription[];
 
-  private async subscribeToPipeline() {
-    const { runtime, cache, scriptFiles } = await createPipelineRuntime(
-      this.options,
-    );
+  private async subscribeToSourceCode() {
+    const { executor, sourceCode } = await parsePipelineFile(this.options);
 
-    this.runtime = runtime;
-    this.cache = cache;
+    this.executor = executor;
 
     const subscriptions = [];
-    for (const directory of collapsePaths(scriptFiles)) {
+    for (const directory of collapsePaths(sourceCode)) {
       subscriptions.push(
         subscribe(directory, (errs, events) => {
           for (const event of events) {
-            if (scriptFiles.has(event.path)) {
-              this.onPipelineChange.call();
+            if (sourceCode.has(event.path)) {
+              this.onSourceCodeChange.call();
               break;
             }
           }
@@ -65,23 +60,23 @@ export class PipelineWatcher {
       );
     }
 
-    await this.runtime.executeAllQueries();
+    await this.executor.executeAllQueries();
 
-    this.pipelineSubscriptions = await Promise.all(subscriptions);
+    this.sourceCodeSubscriptions = await Promise.all(subscriptions);
   }
 
-  private async unsubscribeFromPipeline() {
-    if (this.pipelineSubscriptions) {
+  private async unsubscribeFromSourceCode() {
+    if (this.sourceCodeSubscriptions) {
       const unsubscriptions = [];
-      for (const subscription of this.pipelineSubscriptions) {
+      for (const subscription of this.sourceCodeSubscriptions) {
         unsubscriptions.push(subscription.unsubscribe());
       }
-      this.pipelineSubscriptions = [];
+      this.sourceCodeSubscriptions = [];
       await Promise.all(unsubscriptions);
     }
   }
 
-  private onPipelineChange = debounceAsync(async () => {
+  private onSourceCodeChange = debounceAsync(async () => {
     await this.despawn();
     await this.spawn();
   }, 100);
@@ -91,7 +86,7 @@ export class PipelineWatcher {
 
   private async subscribeToInputs() {
     const ignore = [];
-    for (const pipeline of this.runtime.ignorePipelines) {
+    for (const pipeline of this.executor.ignorePipelines) {
       if (Array.isArray(pipeline.query)) {
         for (const query of pipeline.query) {
           ignore.push(path.join(pipeline.context, query).replace(/\\/g, "/"));
@@ -106,7 +101,7 @@ export class PipelineWatcher {
     const subscriptions = [];
     const subscriptionOptions = { ignore };
 
-    for (const pipeline of this.runtime.queryPipelines) {
+    for (const pipeline of this.executor.queryPipelines) {
       for (const query in pipeline.states) {
         const state = pipeline.states[query];
         const matcher = pipeline.matchers[query];
@@ -118,25 +113,31 @@ export class PipelineWatcher {
             (err, events) => {
               for (const event of events) {
                 const relativePath = path.relative(base, event.path);
-                if (matcher(relativePath) || matcher(relativePath + path.sep)) {
-                  if (event.type === "create") {
-                    pipeline.queryResult.push({
-                      basename: path.basename(event.path),
-                      dirname: path.relative(base, path.dirname(event.path)),
-                      content: event.path,
-                    });
-                  } else if (event.type === "delete") {
-                    for (let i = pipeline.queryResult.length - 1; i >= 0; i--) {
-                      if (pipeline.queryResult[i].content === event.path) {
-                        pipeline.queryResult.splice(i, 1);
-                      }
+                if (
+                  !matcher(relativePath) &&
+                  !matcher(relativePath + path.sep)
+                ) {
+                  continue;
+                }
+
+                if (event.type === "create") {
+                  pipeline.queryResult.push({
+                    basename: path.basename(event.path),
+                    dirname: path.relative(base, path.dirname(event.path)),
+                    content: event.path,
+                  });
+                } else if (event.type === "delete") {
+                  for (let i = pipeline.queryResult.length - 1; i >= 0; i--) {
+                    if (pipeline.queryResult[i].content === event.path) {
+                      pipeline.queryResult.splice(i, 1);
                     }
                   }
-
-                  pipeline.cacheMisses.add(event.path);
-                  this.hitQueryPipelines.add(pipeline);
-                  this.onInputChange.call();
                 }
+
+                pipeline.cacheHit = false;
+                pipeline.cacheMisses.add(event.path);
+                this.hitQueryPipelines.add(pipeline);
+                this.onInputChange.call();
               }
             },
             subscriptionOptions,
@@ -180,18 +181,18 @@ export class PipelineWatcher {
     this.lastRun = new Promise((_resolve) => (resolve = _resolve));
 
     try {
-      const files = await this.runtime.computePipelineResults(
+      const files = await this.executor.computePipelineResults(
         abortController.signal,
       );
 
-      if (this.cache) {
-        await this.cache.save();
+      if (this.executor.cache) {
+        await this.executor.cache.saveResults();
       }
 
       console.log("OUTPUT", files);
     } catch (error) {
-      if (this.cache) {
-        this.cache.reset();
+      if (this.executor.cache) {
+        this.executor.cache.loadFromBackup();
       }
 
       if (error instanceof Error && error.name === "AbortError") {
