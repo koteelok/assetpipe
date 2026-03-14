@@ -1,12 +1,8 @@
 #!/usr/bin/env node
 "use strict";
 
-var path = require("path");
 var { Command } = require("commander");
-var {
-  PipelineWatcher,
-  createPipelineRuntime,
-} = require("@assetpipe/core/runtime");
+var { run, watch } = require("@assetpipe/core/runtime");
 
 var program = new Command();
 
@@ -26,32 +22,20 @@ var options = program.opts();
 
 async function main() {
   if (options.watch) {
-    const executor = new PipelineWatcher({
+    const watcher = await watch({
       entry: PIPELINE_PATH,
       outputDirectory: options.output,
       cacheDirectory: options.cache,
     });
 
-    executor.spawn();
-    return;
-  }
-
-  const { runtime } = await createPipelineRuntime({
-    entry: PIPELINE_PATH,
-    outputDirectory: options.output,
-    cacheDirectory: options.cache,
-  });
-
-  await runtime.executeAllQueries();
-
-  const files = await runtime.computePipelineResults();
-
-  if (files) {
-    console.log("CLI", files);
+    await watcher.spawn();
+  } else {
+    await run({
+      entry: PIPELINE_PATH,
+      outputDirectory: options.output,
+      cacheDirectory: options.cache,
+    });
   }
 }
 
 main();
-// executor.execute().then(() => {
-//   console.log(executor.root);
-// });

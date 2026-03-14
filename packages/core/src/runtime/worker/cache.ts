@@ -2,36 +2,50 @@ import type { Event } from "@parcel/watcher";
 import { getEventsSince, writeSnapshot } from "@parcel/watcher";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
+import type { SetRequired } from "type-fest";
 
-import type { Pipeline } from "../pipelines";
-import type { File } from "../types";
-import { collapsePaths, shortHash } from "../utils";
-import type { PipelineExecutor } from "./executor";
+import type { Pipeline } from "../../pipelines";
+import type { File } from "../../types";
+import { collapsePaths, parseImportsDeep, shortHash } from "../../utils";
+import type { AssetpipeOptions } from "../options";
+import type { PipelineExecutorApi } from "./executor";
+
+type AssetpipeCacheOptions = SetRequired<AssetpipeOptions, "cacheDirectory">;
 
 export class PipelineCache {
   private resulsCacheBackup: Record<string, File[]> = {};
   private resulsCache: Record<string, File[]> = {};
 
   constructor(
-    private entry: string,
-    private cacheDirectory: string,
-    private sourceCode: Set<string>,
-    private runtime: PipelineExecutor,
+    private executor: PipelineExecutorApi,
+    private options: AssetpipeCacheOptions,
   ) {}
 
   public tempFilesPath!: string;
   public resultsPath!: string;
   public sourceCodeSnapshotsPath!: string;
   public inputsSnapshotsPath!: string;
+  public inputFiles!: Set<string>;
+  public inputDirectories!: string[];
 
   async init() {
-    const entryHash = shortHash(path.resolve(this.entry));
-    this.resultsPath = path.join(this.cacheDirectory, "results", entryHash);
-    this.sourceCodeSnapshotsPath = path.join(this.cacheDirectory, "sourceCode");
-    this.inputsSnapshotsPath = path.join(this.cacheDirectory, "inputs");
-    this.tempFilesPath = path.join(this.cacheDirectory, "temp");
+    this.inputFiles = await parseImportsDeep(this.options.entry);
+    this.inputDirectories = collapsePaths(this.inputFiles);
 
-    // await mkdir(this.cacheDirectory, { recursive: true });
+    const entryHash = shortHash(path.resolve(this.options.entry));
+    this.resultsPath = path.join(
+      this.options.cacheDirectory,
+      "results",
+      entryHash,
+    );
+    this.sourceCodeSnapshotsPath = path.join(
+      this.options.cacheDirectory,
+      "sourceCode",
+    );
+    this.inputsSnapshotsPath = path.join(this.options.cacheDirectory, "inputs");
+    this.tempFilesPath = path.join(this.options.cacheDirectory, "temp");
+
+    // await mkdir(this.options.cacheDirectory, { recursive: true });
     await mkdir(this.tempFilesPath, { recursive: true });
   }
 
@@ -42,26 +56,24 @@ export class PipelineCache {
       );
       this.resulsCache = structuredClone(this.resulsCacheBackup);
 
-      const sourceDirectories = collapsePaths(this.sourceCode);
-
-      let sourcesChanged = false;
-      sourcesCheck: for (const directory of sourceDirectories) {
+      let inputChanged = false;
+      sourcesCheck: for (const directory of this.inputDirectories) {
         const snapshotPath = path.resolve(
-          this.cacheDirectory,
+          this.options.cacheDirectory,
           this.sourceCodeSnapshotsPath,
           shortHash(directory),
         );
         const events = await getEventsSince(directory, snapshotPath);
 
         for (const event of events) {
-          if (this.sourceCode.has(event.path)) {
-            sourcesChanged = true;
+          if (this.inputFiles.has(event.path)) {
+            inputChanged = true;
             break sourcesCheck;
           }
         }
       }
 
-      if (sourcesChanged) {
+      if (inputChanged) {
         this.clear();
         await this.saveResults();
       }
@@ -70,7 +82,7 @@ export class PipelineCache {
     }
   }
 
-  loadFromBackup() {
+  loadBackup() {
     this.resulsCache = structuredClone(this.resulsCacheBackup);
   }
 
@@ -92,7 +104,7 @@ export class PipelineCache {
 
   async hitInputs() {
     const ignore: string[] = [];
-    for (const pipeline of this.runtime.ignorePipelines) {
+    for (const pipeline of this.executor.ignorePipelines) {
       if (Array.isArray(pipeline.query)) {
         for (const query of pipeline.query) {
           ignore.push(path.join(pipeline.context, query).replace(/\\/g, "/"));
@@ -107,7 +119,7 @@ export class PipelineCache {
     const eventsPromises: Record<string, Promise<Event[]>> = {};
 
     await Promise.all(
-      this.runtime.queryPipelines.flatMap((pipeline) =>
+      this.executor.queryPipelines.flatMap((pipeline) =>
         Object.keys(pipeline.states).map(async (query) => {
           const state = pipeline.states[query];
           const matcher = pipeline.matchers[query];
@@ -136,7 +148,7 @@ export class PipelineCache {
 
   async snapshotInputs() {
     const ignore = [];
-    for (const pipeline of this.runtime.ignorePipelines) {
+    for (const pipeline of this.executor.ignorePipelines) {
       if (Array.isArray(pipeline.query)) {
         for (const query of pipeline.query) {
           ignore.push(path.join(pipeline.context, query).replace(/\\/g, "/"));
@@ -148,7 +160,7 @@ export class PipelineCache {
       }
     }
 
-    for (const pipeline of this.runtime.queryPipelines) {
+    for (const pipeline of this.executor.queryPipelines) {
       for (const query in pipeline.states) {
         const state = pipeline.states[query];
         const base = path.resolve(state.base);

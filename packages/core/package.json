@@ -43,10 +43,12 @@
   "dependencies": {
     "@parcel/watcher": "^2.5.1",
     "@types/picomatch": "^4.0.2",
+    "comlink": "^4.4.2",
     "jiti": "^2.6.1",
     "oxc-parser": "^0.107.0",
     "oxc-resolver": "^11.16.2",
-    "picomatch": "^4.0.3"
+    "picomatch": "^4.0.3",
+    "type-fest": "^5.4.4"
   },
   "devDependencies": {
     "tsdown": "^0.15.6"
