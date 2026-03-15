@@ -1,24 +1,19 @@
 import * as comlink from "comlink";
 import nodeEndpoint from "comlink/dist/umd/node-adapter";
 import { readdir, stat } from "fs/promises";
-import { createJiti } from "jiti";
 import path from "path";
-import picomatch from "picomatch";
 import { parentPort } from "worker_threads";
 
-import type { Pipeline } from "../../pipelines";
+import type { IgnorePipeline, Pipeline } from "../../pipelines";
 import {
-  ContextPipeline,
   GroupPipeline,
-  IgnorePipeline,
   InteractivePipeline,
-  PipelineMixin,
   QueryPipeline,
 } from "../../pipelines";
 import type { File } from "../../types";
-import { clonePipeline } from "../../utils";
 import type { AssetpipeOptions } from "../options";
 import { PipelineCache } from "./cache";
+import { PipelineState } from "./state";
 
 declare global {
   var CURRENT_CACHE: PipelineCache | undefined;
@@ -42,36 +37,15 @@ export interface QueryInfo {
 }
 
 export class PipelineExecutorApi {
-  public root!: Pipeline;
+  public state!: PipelineState;
   public cache?: PipelineCache;
-  public queryPipelines: QueryPipeline[] = [];
-  public ignorePipelines: IgnorePipeline[] = [];
-  public interactivePipelines: InteractivePipeline[] = [];
   private abortController?: AbortController;
 
-  public abort() {
-    this.abortController?.abort();
-  }
-
   public async init(options: AssetpipeOptions) {
-    const jiti = createJiti(__filename, {
-      fsCache: options.cacheDirectory
-        ? path.join(options.cacheDirectory, "jiti")
-        : false,
-    });
-
-    const pipeline = await jiti.import<Pipeline>(path.resolve(options.entry), {
-      default: true,
-    });
-
-    if (!PipelineMixin.is(pipeline)) {
-      throw new Error(
-        `Default export in file is not a pipeline. (${options.entry})`,
-      );
-    }
+    this.state = await PipelineState.create(options);
 
     if (options.cacheDirectory) {
-      this.cache = new PipelineCache(this, {
+      this.cache = new PipelineCache(this.state, {
         entry: options.entry,
         outputDirectory: options.outputDirectory,
         cacheDirectory: options.cacheDirectory,
@@ -79,11 +53,8 @@ export class PipelineExecutorApi {
       await this.cache.init();
     }
 
-    this.root = clonePipeline(pipeline);
-    this.prepassPipeline(this.root);
-
     const ignores: IgnoreInfo[] = [];
-    for (const pipeline of this.ignorePipelines) {
+    for (const pipeline of this.state.ignorePipelines) {
       ignores.push({
         context: pipeline.context,
         query: pipeline.query,
@@ -91,7 +62,7 @@ export class PipelineExecutorApi {
     }
 
     const queries: QueryInfo[] = [];
-    for (const pipeline of this.queryPipelines) {
+    for (const pipeline of this.state.queryPipelines) {
       queries.push({
         context: pipeline.context,
         query: pipeline.query,
@@ -109,71 +80,24 @@ export class PipelineExecutorApi {
     return { ignores, queries };
   }
 
-  public async saveResultsToCache() {
+  public abort() {
+    this.abortController?.abort();
+  }
+
+  public async saveResultsToCache(): Promise<void> {
     return this.cache?.saveResults();
   }
 
-  public async loadCacheBackup() {
-    return this.cache?.loadBackup();
+  public async loadResultsFromCache(): Promise<void> {
+    return this.cache?.loadResults();
   }
 
-  private prepassPipeline(parent: Pipeline, counter = 0, context = "") {
-    if (parent.id !== undefined) {
-      return parent.id;
-    }
+  public async hitQueriesAgainstCache(cwd = process.cwd()): Promise<void> {
+    return this.cache?.hitQueries(cwd);
+  }
 
-    parent.id = counter++;
-
-    if (InteractivePipeline.is(parent)) {
-      this.interactivePipelines.push(parent);
-    }
-
-    if (ContextPipeline.is(parent)) {
-      context = context ? path.join(parent.context, context) : parent.context;
-    }
-
-    if (QueryPipeline.is(parent)) {
-      parent.context = context;
-
-      if (!this.queryPipelines.includes(parent)) {
-        for (const query of parent.query) {
-          const state = picomatch.scan(
-            path.join(parent.context, query).replace(/\\/g, "/"),
-          );
-          const matcher = picomatch(state.glob, {
-            windows: process.platform === "win32",
-          });
-          parent.states[query] = state;
-          parent.matchers[query] = matcher;
-        }
-
-        this.queryPipelines.push(parent);
-      }
-    }
-
-    if (IgnorePipeline.is(parent)) {
-      parent.context = context;
-
-      if (!this.ignorePipelines.includes(parent)) {
-        this.ignorePipelines.push(parent);
-      }
-    }
-
-    if (GroupPipeline.is(parent)) {
-      for (const child of parent.children) {
-        counter = this.prepassPipeline(child, counter, context);
-      }
-    }
-
-    if (InteractivePipeline.is(parent)) {
-      for (const command of parent.commands) {
-        if (command.type === "pull") {
-          counter = this.prepassPipeline(command.pipeline, counter);
-        }
-      }
-    }
-
-    return counter;
+  public async restoreCacheFromBackup(): Promise<void> {
+    return this.cache?.restoreFromBackup();
   }
 
   public async executeQuery(
@@ -236,11 +160,11 @@ export class PipelineExecutorApi {
   public async executeAllQueries(cwd?: string) {
     const pendingQueries: Promise<void>[] = [];
 
-    for (const pipeline of this.queryPipelines) {
+    for (const pipeline of this.state.queryPipelines) {
       pendingQueries.push(this.executeQuery(pipeline, cwd));
     }
 
-    for (const pipeline of this.ignorePipelines) {
+    for (const pipeline of this.state.ignorePipelines) {
       pendingQueries.push(this.executeQuery(pipeline, cwd));
     }
 
@@ -253,7 +177,7 @@ export class PipelineExecutorApi {
     eventType: string,
     eventPath: string,
   ) {
-    const pipeline = this.queryPipelines[pipelineIndex];
+    const pipeline = this.state.queryPipelines[pipelineIndex];
     const query = pipeline.query[queryIndex];
     const state = pipeline.states[query];
     if (eventType === "create") {
@@ -278,42 +202,40 @@ export class PipelineExecutorApi {
 
   public async computePipelineResults() {
     this.abortController?.abort();
-    const abortController = new AbortController();
-    this.abortController = abortController;
-    const signal = abortController.signal;
+    this.abortController = new AbortController();
 
-    if (InteractivePipeline.is(this.root)) {
+    if (InteractivePipeline.is(this.state.root)) {
       this.filterAllQueryResults();
 
       if (this.cache) {
-        this.waterfallCacheHits(this.root);
+        this.cache.computeCacheHits(this.state.root);
         globalThis.CURRENT_CACHE = this.cache;
       }
 
-      for (const pipeline of this.interactivePipelines) {
+      for (const pipeline of this.state.interactivePipelines) {
         pipeline.resultPromise = undefined;
       }
 
-      await this.computeResult(this.root, signal);
+      await this.computeResult(this.state.root, this.abortController.signal);
 
       if (this.cache) {
         globalThis.CURRENT_CACHE = undefined;
       }
 
-      return this.root.result;
+      return this.state.root.result;
     }
   }
 
   private filterAllQueryResults() {
     const occupiedFiles = new Set<string>();
 
-    for (const pipeline of this.ignorePipelines) {
+    for (const pipeline of this.state.ignorePipelines) {
       for (const file of pipeline.queryResult) {
         occupiedFiles.add(file.content);
       }
     }
 
-    for (const pipeline of this.queryPipelines) {
+    for (const pipeline of this.state.queryPipelines) {
       pipeline.filteredQueryResult = pipeline.queryResult.filter(
         (file) => !occupiedFiles.has(file.content),
       );
@@ -321,45 +243,6 @@ export class PipelineExecutorApi {
       if (pipeline.claim) {
         for (const file of pipeline.queryResult) {
           occupiedFiles.add(file.content);
-        }
-      }
-    }
-  }
-
-  private async waterfallCacheHits(parent: Pipeline) {
-    if (GroupPipeline.is(parent)) {
-      parent.cacheHit = true;
-
-      for (const child of parent.children) {
-        this.waterfallCacheHits(child);
-
-        if (InteractivePipeline.is(child) && !child.cacheHit) {
-          parent.cacheHit = false;
-          break;
-        }
-      }
-    }
-
-    if (QueryPipeline.is(parent)) {
-      parent.cacheHit = parent.cacheHit || parent.cacheMisses.size === 0;
-    }
-
-    if (InteractivePipeline.is(parent)) {
-      parent.firstDirtyPull = undefined;
-
-      for (let i = 0; i < parent.commands.length; i++) {
-        const command = parent.commands[i];
-        if (command.type === "pull") {
-          this.waterfallCacheHits(command.pipeline);
-
-          if (
-            InteractivePipeline.is(command.pipeline) &&
-            !command.pipeline.cacheHit
-          ) {
-            if (parent.firstDirtyPull === undefined) {
-              parent.firstDirtyPull = i;
-            }
-          }
         }
       }
     }

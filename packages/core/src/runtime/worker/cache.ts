@@ -4,11 +4,17 @@ import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import type { SetRequired } from "type-fest";
 
-import type { Pipeline } from "../../pipelines";
+import {
+  GroupPipeline,
+  InteractivePipeline,
+  type Pipeline,
+  QueryPipeline,
+} from "../../pipelines";
 import type { File } from "../../types";
 import { collapsePaths, parseImportsDeep, shortHash } from "../../utils";
 import type { AssetpipeOptions } from "../options";
-import type { PipelineExecutorApi } from "./executor";
+import type { PipelineState } from "./state";
+import { exists } from '../../utils/exists';
 
 type AssetpipeCacheOptions = SetRequired<AssetpipeOptions, "cacheDirectory">;
 
@@ -17,7 +23,7 @@ export class PipelineCache {
   private resulsCache: Record<string, File[]> = {};
 
   constructor(
-    private executor: PipelineExecutorApi,
+    private state: PipelineState,
     private options: AssetpipeCacheOptions,
   ) {}
 
@@ -45,7 +51,8 @@ export class PipelineCache {
     this.inputsSnapshotsPath = path.join(this.options.cacheDirectory, "inputs");
     this.tempFilesPath = path.join(this.options.cacheDirectory, "temp");
 
-    // await mkdir(this.options.cacheDirectory, { recursive: true });
+    await mkdir(this.sourceCodeSnapshotsPath, { recursive: true });
+    await mkdir(this.inputsSnapshotsPath, { recursive: true });
     await mkdir(this.tempFilesPath, { recursive: true });
   }
 
@@ -57,19 +64,27 @@ export class PipelineCache {
       this.resulsCache = structuredClone(this.resulsCacheBackup);
 
       let inputChanged = false;
-      sourcesCheck: for (const directory of this.inputDirectories) {
-        const snapshotPath = path.resolve(
-          this.options.cacheDirectory,
+      for (const directory of this.inputDirectories) {
+        const snapshotPath = path.join(
           this.sourceCodeSnapshotsPath,
           shortHash(directory),
         );
-        const events = await getEventsSince(directory, snapshotPath);
 
-        for (const event of events) {
-          if (this.inputFiles.has(event.path)) {
-            inputChanged = true;
-            break sourcesCheck;
+        const snapshotExists = await exists(snapshotPath);
+
+        if (snapshotExists) {
+          const events = await getEventsSince(directory, snapshotPath);
+
+          for (const event of events) {
+            if (this.inputFiles.has(event.path)) {
+              inputChanged = true;
+              break;
+            }
           }
+        } else {
+          await writeSnapshot(directory, snapshotPath);
+          inputChanged = true;
+          break;
         }
       }
 
@@ -82,7 +97,7 @@ export class PipelineCache {
     }
   }
 
-  loadBackup() {
+  restoreFromBackup() {
     this.resulsCache = structuredClone(this.resulsCacheBackup);
   }
 
@@ -102,9 +117,9 @@ export class PipelineCache {
     this.resulsCache = {};
   }
 
-  async hitInputs() {
+  async hitQueries(cwd = process.cwd()) {
     const ignore: string[] = [];
-    for (const pipeline of this.executor.ignorePipelines) {
+    for (const pipeline of this.state.ignorePipelines) {
       if (Array.isArray(pipeline.query)) {
         for (const query of pipeline.query) {
           ignore.push(path.join(pipeline.context, query).replace(/\\/g, "/"));
@@ -116,21 +131,36 @@ export class PipelineCache {
       }
     }
 
-    const eventsPromises: Record<string, Promise<Event[]>> = {};
+    const eventsPromises: Record<string, Promise<Event[] | undefined>> = {};
 
     await Promise.all(
-      this.executor.queryPipelines.flatMap((pipeline) =>
+      this.state.queryPipelines.flatMap((pipeline) =>
         Object.keys(pipeline.states).map(async (query) => {
           const state = pipeline.states[query];
           const matcher = pipeline.matchers[query];
-          const base = path.resolve(state.base);
-
-          eventsPromises[base] ??= getEventsSince(
-            base,
-            path.join(pipeline.context, query),
-            { ignore },
+          const base = path.resolve(cwd, state.base);
+          const snapshotPath = path.join(
+            this.inputsSnapshotsPath,
+            shortHash(query),
           );
-          const events = await eventsPromises[base];
+
+          eventsPromises[state.base] ??= new Promise(async (resolve) => {
+            const snapshotExists = await exists(snapshotPath);
+
+            if (snapshotExists) {
+              resolve(getEventsSince(base, snapshotPath, { ignore }));
+            } else {
+              await writeSnapshot(base, snapshotPath, { ignore });
+              resolve(undefined);
+            }
+          });
+
+          const events = await eventsPromises[state.base];
+
+          if (!events) {
+            pipeline.cacheHit = true;
+            return;
+          }
 
           for (const event of events) {
             const relativePath = path.relative(base, event.path);
@@ -146,28 +176,41 @@ export class PipelineCache {
     );
   }
 
-  async snapshotInputs() {
-    const ignore = [];
-    for (const pipeline of this.executor.ignorePipelines) {
-      if (Array.isArray(pipeline.query)) {
-        for (const query of pipeline.query) {
-          ignore.push(path.join(pipeline.context, query).replace(/\\/g, "/"));
+  async computeCacheHits(parent: Pipeline) {
+    if (GroupPipeline.is(parent)) {
+      parent.cacheHit = true;
+
+      for (const child of parent.children) {
+        this.computeCacheHits(child);
+
+        if (InteractivePipeline.is(child) && !child.cacheHit) {
+          parent.cacheHit = false;
+          break;
         }
-      } else {
-        ignore.push(
-          path.join(pipeline.context, pipeline.query).replace(/\\/g, "/"),
-        );
       }
     }
 
-    for (const pipeline of this.executor.queryPipelines) {
-      for (const query in pipeline.states) {
-        const state = pipeline.states[query];
-        const base = path.resolve(state.base);
+    if (QueryPipeline.is(parent)) {
+      parent.cacheHit = parent.cacheHit || parent.cacheMisses.size === 0;
+    }
 
-        await writeSnapshot(base, path.join(pipeline.context, query), {
-          ignore,
-        });
+    if (InteractivePipeline.is(parent)) {
+      parent.firstDirtyPull = undefined;
+
+      for (let i = 0; i < parent.commands.length; i++) {
+        const command = parent.commands[i];
+        if (command.type === "pull") {
+          this.computeCacheHits(command.pipeline);
+
+          if (
+            InteractivePipeline.is(command.pipeline) &&
+            !command.pipeline.cacheHit
+          ) {
+            if (parent.firstDirtyPull === undefined) {
+              parent.firstDirtyPull = i;
+            }
+          }
+        }
       }
     }
   }

@@ -36,6 +36,8 @@ async function main() {
       cacheDirectory: options.cache,
     });
   }
+
+  process.exit(1);
 }
 
 main();

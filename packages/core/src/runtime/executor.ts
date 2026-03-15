@@ -56,16 +56,27 @@ export class PipelineExecutor {
     return this.api.saveResultsToCache();
   }
 
-  async loadCacheBackup() {
-    return this.api.loadCacheBackup();
+  async loadResultsFromCache() {
+    return this.api.loadResultsFromCache();
+  }
+
+  async hitQueriesAgainstCache(cwd = process.cwd()) {
+    return this.api.hitQueriesAgainstCache(cwd);
+  }
+
+  async restoreCacheFromBackup() {
+    return this.api.restoreCacheFromBackup();
   }
 }
 
 export async function run(options: AssetpipeOptions) {
   const executor = new PipelineExecutor();
   await executor.init(options);
+  await executor.hitQueriesAgainstCache(dirname(options.entry));
+  await executor.loadResultsFromCache();
   await executor.executeAllQueries(dirname(options.entry));
   const files = await executor.computePipelineResults();
+  await executor.saveResultsToCache();
   if (files) {
     await mkdir(options.outputDirectory, { recursive: true });
     await Promise.all(

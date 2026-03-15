@@ -186,7 +186,7 @@ class PipelineWatcher {
         console.log("OUTPUT", files);
       } catch (error) {
         if (this.cachingEnabled) {
-          await this.executor.loadCacheBackup();
+          await this.executor.restoreCacheFromBackup();
         }
 
         if (error instanceof Error && error.name === "AbortError") {

@@ -1,4 +1,4 @@
-import type { PipelineCache } from "@assetpipe/core/runtime";
+import type { PipelineCache } from "@assetpipe/core/worker";
 import { randomUUID } from "crypto";
 import { tmpdir as osTempDir } from "os";
 
