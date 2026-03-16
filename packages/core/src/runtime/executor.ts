@@ -50,8 +50,8 @@ export async function run(options: AssetpipeOptions) {
   await executor.executeAllQueries(dirname(options.entry));
   const files = await executor.computePipelineResults();
   await executor.saveResultsToCache();
+  await mkdir(options.outputDirectory, { recursive: true });
   if (files) {
-    await mkdir(options.outputDirectory, { recursive: true });
     await Promise.all(
       files.map((file) =>
         copyFile(file.content, `${options.outputDirectory}/${file.basename}`),

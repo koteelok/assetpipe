@@ -6,6 +6,7 @@ import picomatch from "picomatch";
 import { collapsePaths, debounceAsync, parseImportsDeep } from "../utils";
 import { createExecutor, type PipelineExecutorAPI } from "./executor";
 import type { AssetpipeOptions } from "./options";
+import { copyFile, mkdir } from "fs/promises";
 
 class PipelineWatcher {
   private cachingEnabled: boolean;
@@ -20,6 +21,7 @@ class PipelineWatcher {
     if (this.active) return;
     this.active = true;
     this.onSourceCodeChange.enable();
+    await mkdir(this.options.outputDirectory, { recursive: true });
     await this.subscribeToSourceCode();
     await this.subscribeToQueries();
     await this.run();
@@ -180,7 +182,16 @@ class PipelineWatcher {
           await this.executor.saveResultsToCache();
         }
 
-        console.log("OUTPUT", files);
+        if (files) {
+          await Promise.all(
+            files.map((file) =>
+              copyFile(
+                file.content,
+                `${this.options.outputDirectory}/${file.basename}`,
+              ),
+            ),
+          );
+        }
       } catch (error) {
         if (this.cachingEnabled) {
           await this.executor.restoreCacheFromBackup();
