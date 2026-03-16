@@ -3,12 +3,12 @@ import { readdir, readFile } from "fs/promises";
 import { resolve } from "path";
 import { expect, test } from "vitest";
 
-test("simple", async () => {
-  const entry = resolve(__dirname, "simple.pipeline.ts");
+test("useWorker: true", async () => {
+  const entry = resolve(__dirname, "pipeline.ts");
   const outputDirectory = resolve(__dirname, "result");
   const cacheDirectory = resolve(__dirname, "cache");
 
-  await run({ entry, outputDirectory, cacheDirectory, useWorker: false });
+  await run({ entry, outputDirectory, cacheDirectory, useWorker: true });
 
   const resultFiles = await readdir(outputDirectory);
 
