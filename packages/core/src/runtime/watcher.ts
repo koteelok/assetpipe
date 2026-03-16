@@ -1,19 +1,20 @@
 import type { AsyncSubscription } from "@parcel/watcher";
 import { subscribe } from "@parcel/watcher";
+import { copyFile, mkdir } from "fs/promises";
 import path from "path";
 import picomatch from "picomatch";
 
+import type { File } from "../types";
 import { collapsePaths, debounceAsync, parseImportsDeep } from "../utils";
 import { createExecutor, type PipelineExecutorAPI } from "./executor";
 import type { AssetpipeOptions } from "./options";
-import { copyFile, mkdir } from "fs/promises";
 
-class PipelineWatcher {
-  private cachingEnabled: boolean;
+type AssetpipeWatcherOptions = AssetpipeOptions & {
+  onOutput?: (files: File[]) => void;
+};
 
-  constructor(private options: AssetpipeOptions) {
-    this.cachingEnabled = !!options.cacheDirectory;
-  }
+export class PipelineWatcher {
+  constructor(private options: AssetpipeWatcherOptions) {}
 
   private active = false;
 
@@ -21,7 +22,9 @@ class PipelineWatcher {
     if (this.active) return;
     this.active = true;
     this.onSourceCodeChange.enable();
-    await mkdir(this.options.outputDirectory, { recursive: true });
+    if (this.options.outputDirectory) {
+      await mkdir(this.options.outputDirectory, { recursive: true });
+    }
     await this.subscribeToSourceCode();
     await this.subscribeToQueries();
     await this.run();
@@ -178,22 +181,28 @@ class PipelineWatcher {
       try {
         const files = await this.executor.computePipelineResults();
 
-        if (this.cachingEnabled) {
+        if (this.options.cacheDirectory) {
           await this.executor.saveResultsToCache();
         }
 
         if (files) {
-          await Promise.all(
-            files.map((file) =>
-              copyFile(
-                file.content,
-                `${this.options.outputDirectory}/${file.basename}`,
+          if (this.options.outputDirectory) {
+            await Promise.all(
+              files.map((file) =>
+                copyFile(
+                  file.content,
+                  `${this.options.outputDirectory}/${file.basename}`,
+                ),
               ),
-            ),
-          );
+            );
+          }
+
+          if (this.options.onOutput) {
+            this.options.onOutput(files);
+          }
         }
       } catch (error) {
-        if (this.cachingEnabled) {
+        if (this.options.cacheDirectory) {
           await this.executor.restoreCacheFromBackup();
         }
 

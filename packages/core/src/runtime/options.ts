@@ -1,6 +1,6 @@
 export interface AssetpipeOptions {
   entry: string;
-  outputDirectory: string;
+  outputDirectory?: string;
   cacheDirectory?: string;
   /**
    * @default true

@@ -1,2 +1,2 @@
-export { run } from "./executor";
-export { watch } from "./watcher";
+export { PipelineExecutorAPI, run } from "./executor";
+export { PipelineWatcher, watch } from "./watcher";
