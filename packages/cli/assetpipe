@@ -26,6 +26,7 @@ async function main() {
       entry: PIPELINE_PATH,
       outputDirectory: options.output,
       cacheDirectory: options.cache,
+      useWorker: false,
     });
 
     await watcher.spawn();
@@ -34,6 +35,7 @@ async function main() {
       entry: PIPELINE_PATH,
       outputDirectory: options.output,
       cacheDirectory: options.cache,
+      useWorker: false,
     });
   }
 

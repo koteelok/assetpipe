@@ -6,17 +6,23 @@ import { Worker } from "worker_threads";
 
 import type { IgnorePipeline, QueryPipeline } from "../pipelines";
 import type { AssetpipeOptions } from "./options";
-import type { IgnoreInfo, PipelineExecutorApi, QueryInfo } from "./worker";
+import { IgnoreInfo, PipelineExecutorApi, QueryInfo } from "./worker";
 
 export class PipelineExecutor {
-  private api = comlink.wrap<PipelineExecutorApi>(
-    nodeEndpoint(new Worker(`${__dirname}/worker/index.js`)),
-  );
+  private api!: PipelineExecutorApi | comlink.Remote<PipelineExecutorApi>;
 
   public ignores!: IgnoreInfo[];
   public queries!: QueryInfo[];
 
   async init(options: AssetpipeOptions) {
+    if (options.useWorker === false) {
+      this.api = new PipelineExecutorApi();
+    } else {
+      this.api = comlink.wrap<PipelineExecutorApi>(
+        nodeEndpoint(new Worker(`${__dirname}/worker/index.js`)),
+      );
+    }
+
     const { ignores, queries } = await this.api.init(options);
     this.ignores = ignores;
     this.queries = queries;

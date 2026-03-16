@@ -8,7 +8,7 @@ test("simple", async () => {
   const outputDirectory = resolve(__dirname, "result");
   const cacheDirectory = resolve(__dirname, "cache");
 
-  await run({ entry, outputDirectory, cacheDirectory });
+  await run({ entry, outputDirectory, cacheDirectory, useWorker: false });
 
   const resultFiles = await readdir(outputDirectory);
 
