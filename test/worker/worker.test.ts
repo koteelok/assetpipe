@@ -5,7 +5,7 @@ import { expect, test } from "vitest";
 
 test("useWorker: true", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
-  const outputDirectory = resolve(__dirname, "result");
+  const outputDirectory = resolve(__dirname, "output");
   const cacheDirectory = resolve(__dirname, "cache");
 
   await run({ entry, outputDirectory, cacheDirectory, useWorker: true });

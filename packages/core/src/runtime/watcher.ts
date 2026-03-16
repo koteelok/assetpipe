@@ -1,7 +1,7 @@
 import type { AsyncSubscription } from "@parcel/watcher";
 import { subscribe } from "@parcel/watcher";
 import { copyFile, mkdir } from "fs/promises";
-import path from "path";
+import path, { dirname } from "path";
 import picomatch from "picomatch";
 
 import type { File } from "../types";
@@ -21,10 +21,12 @@ export class PipelineWatcher {
   async spawn() {
     if (this.active) return;
     this.active = true;
-    this.onSourceCodeChange.enable();
     if (this.options.outputDirectory) {
       await mkdir(this.options.outputDirectory, { recursive: true });
     }
+    this.onSourceCodeChange.enable();
+    this.executor = await createExecutor(this.options);
+    await this.executor.executeAllQueries();
     await this.subscribeToSourceCode();
     await this.subscribeToQueries();
     await this.run();
@@ -45,7 +47,6 @@ export class PipelineWatcher {
   private sourceCodeSubscriptions?: AsyncSubscription[];
 
   private async subscribeToSourceCode() {
-    this.executor = await createExecutor(this.options);
     const inputFiles = await parseImportsDeep(this.options.entry);
     const inputDirectories = collapsePaths(inputFiles);
 
@@ -62,8 +63,6 @@ export class PipelineWatcher {
         }),
       );
     }
-
-    await this.executor.executeAllQueries();
 
     this.sourceCodeSubscriptions = await Promise.all(subscriptions);
   }
@@ -107,17 +106,17 @@ export class PipelineWatcher {
 
       for (let queryIndex = 0; queryIndex < info.query.length; queryIndex++) {
         const state = info.states[info.query[queryIndex]];
-        const base = path.resolve(state.base);
+        const basePath = path.resolve(dirname(this.options.entry), state.base);
         const matcher = picomatch(state.glob, {
           windows: process.platform === "win32",
         });
 
         subscriptions.push(
           subscribe(
-            base,
+            basePath,
             (err, events) => {
               for (const event of events) {
-                const relativePath = path.relative(base, event.path);
+                const relativePath = path.relative(basePath, event.path);
                 if (
                   !matcher(relativePath) &&
                   !matcher(relativePath + path.sep)
@@ -216,6 +215,6 @@ export class PipelineWatcher {
   }
 }
 
-export async function watch(options: AssetpipeOptions) {
+export async function watch(options: AssetpipeWatcherOptions) {
   return new PipelineWatcher(options);
 }

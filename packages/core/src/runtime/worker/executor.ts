@@ -1,5 +1,5 @@
 import { readdir, stat } from "fs/promises";
-import path from "path";
+import path, { dirname } from "path";
 
 import type { IgnorePipeline, Pipeline } from "../../pipelines";
 import {
@@ -37,15 +37,18 @@ export class PipelineExecutor {
   public state!: PipelineState;
   public cache?: PipelineCache;
   private abortController?: AbortController;
+  private options!: AssetpipeOptions;
 
   public async init(options: AssetpipeOptions) {
-    this.state = await PipelineState.create(options);
+    this.options = options;
 
-    if (options.cacheDirectory) {
+    this.state = await PipelineState.create(this.options);
+
+    if (this.options.cacheDirectory) {
       this.cache = new PipelineCache(this.state, {
-        entry: options.entry,
-        outputDirectory: options.outputDirectory,
-        cacheDirectory: options.cacheDirectory,
+        entry: this.options.entry,
+        outputDirectory: this.options.outputDirectory,
+        cacheDirectory: this.options.cacheDirectory,
       });
       await this.cache.init();
     }
@@ -89,23 +92,20 @@ export class PipelineExecutor {
     return this.cache?.loadResults();
   }
 
-  public async hitQueriesAgainstCache(cwd = process.cwd()): Promise<void> {
-    return this.cache?.hitQueries(cwd);
+  public async hitQueriesAgainstCache(): Promise<void> {
+    return this.cache?.hitQueries();
   }
 
   public async restoreCacheFromBackup(): Promise<void> {
     return this.cache?.restoreFromBackup();
   }
 
-  public async executeQuery(
-    pipeline: QueryPipeline | IgnorePipeline,
-    cwd = process.cwd(),
-  ) {
+  public async executeQuery(pipeline: QueryPipeline | IgnorePipeline) {
     pipeline.queryResult = [];
 
     for (const query of pipeline.query) {
       const state = pipeline.states[query];
-      const basePath = path.resolve(cwd, state.base);
+      const basePath = path.resolve(dirname(this.options.entry), state.base);
 
       if (state.glob === "") {
         const exists = await stat(basePath).then(
@@ -154,15 +154,15 @@ export class PipelineExecutor {
     }
   }
 
-  public async executeAllQueries(cwd?: string) {
+  public async executeAllQueries() {
     const pendingQueries: Promise<void>[] = [];
 
     for (const pipeline of this.state.queryPipelines) {
-      pendingQueries.push(this.executeQuery(pipeline, cwd));
+      pendingQueries.push(this.executeQuery(pipeline));
     }
 
     for (const pipeline of this.state.ignorePipelines) {
-      pendingQueries.push(this.executeQuery(pipeline, cwd));
+      pendingQueries.push(this.executeQuery(pipeline));
     }
 
     return Promise.all(pendingQueries);

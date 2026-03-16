@@ -1,7 +1,6 @@
 import * as comlink from "comlink";
 import nodeEndpoint from "comlink/dist/umd/node-adapter";
 import { copyFile, mkdir } from "fs/promises";
-import { dirname } from "path";
 import type { Simplify } from "type-fest";
 import { Worker } from "worker_threads";
 
@@ -55,9 +54,9 @@ type AssetpipeRunOptions = AssetpipeOptions & {
 
 export async function run(options: AssetpipeRunOptions) {
   const executor = await createExecutor(options);
-  await executor.hitQueriesAgainstCache(dirname(options.entry));
+  await executor.hitQueriesAgainstCache();
   await executor.loadResultsFromCache();
-  await executor.executeAllQueries(dirname(options.entry));
+  await executor.executeAllQueries();
   const files = await executor.computePipelineResults();
   await executor.saveResultsToCache();
 

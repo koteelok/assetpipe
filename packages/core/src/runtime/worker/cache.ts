@@ -1,7 +1,7 @@
 import type { Event } from "@parcel/watcher";
 import { getEventsSince, writeSnapshot } from "@parcel/watcher";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import path from "path";
+import path, { dirname } from "path";
 import type { SetRequired } from "type-fest";
 
 import {
@@ -117,7 +117,7 @@ export class PipelineCache {
     this.resulsCache = {};
   }
 
-  async hitQueries(cwd = process.cwd()) {
+  async hitQueries() {
     const ignore: string[] = [];
     for (const pipeline of this.state.ignorePipelines) {
       if (Array.isArray(pipeline.query)) {
@@ -138,7 +138,7 @@ export class PipelineCache {
         Object.keys(pipeline.states).map(async (query) => {
           const state = pipeline.states[query];
           const matcher = pipeline.matchers[query];
-          const base = path.resolve(cwd, state.base);
+          const base = path.resolve(dirname(this.options.entry), state.base);
           const snapshotPath = path.join(
             this.inputsSnapshotsPath,
             shortHash(query),

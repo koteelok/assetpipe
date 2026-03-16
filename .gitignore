@@ -5,4 +5,4 @@ dist
 bun.lock
 package-lock.json
 test/**/cache
-test/**/result
+test/**/output
