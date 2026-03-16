@@ -1,4 +1,4 @@
-import { readdir, stat } from "fs/promises";
+import { readdir } from "fs/promises";
 import path, { dirname } from "path";
 
 import type { IgnorePipeline, Pipeline } from "../../pipelines";
@@ -8,10 +8,10 @@ import {
   QueryPipeline,
 } from "../../pipelines";
 import type { File } from "../../types";
+import { exists } from "../../utils/exists";
 import type { AssetpipeOptions } from "../options";
 import { PipelineCache } from "./cache";
 import { PipelineState } from "./state";
-import { exists } from "../../utils/exists";
 
 declare global {
   var CURRENT_CACHE: PipelineCache | undefined;

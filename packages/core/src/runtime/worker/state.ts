@@ -22,6 +22,18 @@ export class PipelineState {
 
   private constructor() {}
 
+  private buildMatchers(parent: QueryPipeline | IgnorePipeline) {
+    for (const query of parent.query) {
+      const state = picomatch.scan(
+        path.join(parent.context, query).replace(/\\/g, "/"),
+      );
+      parent.states[query] = state;
+      parent.matchers[query] = picomatch(state.glob, {
+        windows: process.platform === "win32",
+      });
+    }
+  }
+
   private prepassPipeline(parent: Pipeline, counter = 0, context = "") {
     if (parent.id !== undefined) {
       return parent.id;
@@ -41,17 +53,7 @@ export class PipelineState {
       parent.context = context;
 
       if (!this.queryPipelines.includes(parent)) {
-        for (const query of parent.query) {
-          const state = picomatch.scan(
-            path.join(parent.context, query).replace(/\\/g, "/"),
-          );
-          const matcher = picomatch(state.glob, {
-            windows: process.platform === "win32",
-          });
-          parent.states[query] = state;
-          parent.matchers[query] = matcher;
-        }
-
+        this.buildMatchers(parent);
         this.queryPipelines.push(parent);
       }
     }
@@ -60,6 +62,7 @@ export class PipelineState {
       parent.context = context;
 
       if (!this.ignorePipelines.includes(parent)) {
+        this.buildMatchers(parent);
         this.ignorePipelines.push(parent);
       }
     }
