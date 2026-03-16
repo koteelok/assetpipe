@@ -4,7 +4,7 @@ import path from "path";
 import picomatch from "picomatch";
 
 import { collapsePaths, debounceAsync, parseImportsDeep } from "../utils";
-import { PipelineExecutor } from "./executor";
+import { createExecutor, type PipelineExecutorAPI } from "./executor";
 import type { AssetpipeOptions } from "./options";
 
 class PipelineWatcher {
@@ -36,16 +36,13 @@ class PipelineWatcher {
     ]);
   }
 
-  private executor!: PipelineExecutor;
+  private executor!: PipelineExecutorAPI;
   private sourceCodeSubscriptions?: AsyncSubscription[];
 
   private async subscribeToSourceCode() {
-    const executor = new PipelineExecutor();
-    await executor.init(this.options);
+    this.executor = await createExecutor(this.options);
     const inputFiles = await parseImportsDeep(this.options.entry);
     const inputDirectories = collapsePaths(inputFiles);
-
-    this.executor = executor;
 
     const subscriptions = [];
     for (const directory of inputDirectories) {

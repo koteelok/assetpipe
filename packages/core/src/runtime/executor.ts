@@ -2,82 +2,49 @@ import * as comlink from "comlink";
 import nodeEndpoint from "comlink/dist/umd/node-adapter";
 import { copyFile, mkdir } from "fs/promises";
 import { dirname } from "path";
+import type { Simplify } from "type-fest";
 import { Worker } from "worker_threads";
 
-import type { IgnorePipeline, QueryPipeline } from "../pipelines";
 import type { AssetpipeOptions } from "./options";
-import { IgnoreInfo, PipelineExecutorApi, QueryInfo } from "./worker";
+import type { IgnoreInfo, QueryInfo } from "./worker";
+import { PipelineExecutor } from "./worker";
 
-export class PipelineExecutor {
-  private api!: PipelineExecutorApi | comlink.Remote<PipelineExecutorApi>;
+type OnlyAsyncMethods<T> = {
+  [K in keyof T as T[K] extends (...args: any[]) => Promise<any>
+    ? K
+    : never]: T[K];
+};
 
-  public ignores!: IgnoreInfo[];
-  public queries!: QueryInfo[];
+export type PipelineExecutorAPI = Simplify<
+  {
+    ignores: IgnoreInfo[];
+    queries: QueryInfo[];
+  } & OnlyAsyncMethods<PipelineExecutor>
+>;
 
-  async init(options: AssetpipeOptions) {
-    if (options.useWorker === false) {
-      this.api = new PipelineExecutorApi();
-    } else {
-      this.api = comlink.wrap<PipelineExecutorApi>(
-        nodeEndpoint(new Worker(`${__dirname}/worker/index.js`)),
-      );
-    }
+export async function createExecutor(options: AssetpipeOptions) {
+  let api;
 
-    const { ignores, queries } = await this.api.init(options);
-    this.ignores = ignores;
-    this.queries = queries;
-  }
-
-  executeQuery(pipeline: QueryPipeline | IgnorePipeline, cwd = process.cwd()) {
-    return this.api.executeQuery(pipeline, cwd);
-  }
-
-  executeAllQueries(cwd = process.cwd()) {
-    return this.api.executeAllQueries(cwd);
-  }
-
-  computePipelineResults() {
-    return this.api.computePipelineResults();
-  }
-
-  abort() {
-    return this.api.abort();
-  }
-
-  submitQueryCacheMiss(
-    pipelineIndex: number,
-    queryIndex: number,
-    eventType: string,
-    eventPath: string,
-  ) {
-    return this.api.submitQueryCacheMiss(
-      pipelineIndex,
-      queryIndex,
-      eventType,
-      eventPath,
+  if (options.useWorker === false) {
+    api = new PipelineExecutor();
+  } else {
+    api = comlink.wrap<PipelineExecutor>(
+      nodeEndpoint(new Worker(`${__dirname}/worker/index.js`)),
     );
   }
 
-  async saveResultsToCache() {
-    return this.api.saveResultsToCache();
-  }
+  api = api as unknown as PipelineExecutorAPI;
 
-  async loadResultsFromCache() {
-    return this.api.loadResultsFromCache();
-  }
+  const { ignores, queries } = await api.init(options);
 
-  async hitQueriesAgainstCache(cwd = process.cwd()) {
-    return this.api.hitQueriesAgainstCache(cwd);
-  }
+  api.queries = queries;
+  api.ignores = ignores;
 
-  async restoreCacheFromBackup() {
-    return this.api.restoreCacheFromBackup();
-  }
+  return api;
 }
 
 export async function run(options: AssetpipeOptions) {
-  const executor = new PipelineExecutor();
-  await executor.init(options);
+  const executor = await createExecutor(options);
   await executor.hitQueriesAgainstCache(dirname(options.entry));
   await executor.loadResultsFromCache();
   await executor.executeAllQueries(dirname(options.entry));

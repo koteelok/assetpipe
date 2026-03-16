@@ -1,8 +1,5 @@
-import * as comlink from "comlink";
-import nodeEndpoint from "comlink/dist/umd/node-adapter";
 import { readdir, stat } from "fs/promises";
 import path from "path";
-import { parentPort } from "worker_threads";
 
 import type { IgnorePipeline, Pipeline } from "../../pipelines";
 import {
@@ -36,7 +33,7 @@ export interface QueryInfo {
   >;
 }
 
-export class PipelineExecutorApi {
+export class PipelineExecutor {
   public state!: PipelineState;
   public cache?: PipelineCache;
   private abortController?: AbortController;
@@ -80,7 +77,7 @@ export class PipelineExecutorApi {
     return { ignores, queries };
   }
 
-  public abort() {
+  public async abort() {
     this.abortController?.abort();
   }
 
@@ -171,7 +168,7 @@ export class PipelineExecutorApi {
     return Promise.all(pendingQueries);
   }
 
-  public submitQueryCacheMiss(
+  public async submitQueryCacheMiss(
     pipelineIndex: number,
     queryIndex: number,
     eventType: string,
@@ -444,8 +441,4 @@ export class PipelineExecutorApi {
 
     return output;
   }
-}
-
-if (parentPort) {
-  comlink.expose(new PipelineExecutorApi(), nodeEndpoint(parentPort));
 }

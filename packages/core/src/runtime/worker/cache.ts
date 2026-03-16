@@ -12,9 +12,9 @@ import {
 } from "../../pipelines";
 import type { File } from "../../types";
 import { collapsePaths, parseImportsDeep, shortHash } from "../../utils";
+import { exists } from "../../utils/exists";
 import type { AssetpipeOptions } from "../options";
 import type { PipelineState } from "./state";
-import { exists } from '../../utils/exists';
 
 type AssetpipeCacheOptions = SetRequired<AssetpipeOptions, "cacheDirectory">;
 
@@ -144,16 +144,13 @@ export class PipelineCache {
             shortHash(query),
           );
 
-          eventsPromises[state.base] ??= new Promise(async (resolve) => {
-            const snapshotExists = await exists(snapshotPath);
-
-            if (snapshotExists) {
-              resolve(getEventsSince(base, snapshotPath, { ignore }));
+          eventsPromises[state.base] ??= (async () => {
+            if (await exists(snapshotPath)) {
+              return getEventsSince(base, snapshotPath, { ignore });
             } else {
               await writeSnapshot(base, snapshotPath, { ignore });
-              resolve(undefined);
             }
-          });
+          })();
 
           const events = await eventsPromises[state.base];
 
