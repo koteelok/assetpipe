@@ -5,6 +5,7 @@ import { dirname } from "path";
 import type { Simplify } from "type-fest";
 import { Worker } from "worker_threads";
 
+import type { File } from "../types";
 import type { AssetpipeOptions } from "./options";
 import type { IgnoreInfo, QueryInfo } from "./worker";
 import { PipelineExecutor } from "./worker";
@@ -33,7 +34,12 @@ export async function createExecutor(options: AssetpipeOptions) {
     );
   }
 
-  const { ignores, queries } = await api.init(options);
+  const { ignores, queries } = await api.init({
+    entry: options.entry,
+    cacheDirectory: options.cacheDirectory,
+    outputDirectory: options.outputDirectory,
+    useWorker: options.useWorker,
+  });
 
   api = api as unknown as PipelineExecutorAPI;
 
@@ -43,21 +49,31 @@ export async function createExecutor(options: AssetpipeOptions) {
   return api;
 }
 
-export async function run(options: AssetpipeOptions) {
+type AssetpipeRunOptions = AssetpipeOptions & {
+  onOutput?: (files: File[]) => void;
+};
+
+export async function run(options: AssetpipeRunOptions) {
   const executor = await createExecutor(options);
   await executor.hitQueriesAgainstCache(dirname(options.entry));
   await executor.loadResultsFromCache();
   await executor.executeAllQueries(dirname(options.entry));
   const files = await executor.computePipelineResults();
   await executor.saveResultsToCache();
+
   if (options.outputDirectory) {
     await mkdir(options.outputDirectory, { recursive: true });
-    if (files) {
+  }
+
+  if (files) {
+    if (options.outputDirectory) {
       await Promise.all(
         files.map((file) =>
           copyFile(file.content, `${options.outputDirectory}/${file.basename}`),
         ),
       );
     }
+
+    options.onOutput?.(files);
   }
 }

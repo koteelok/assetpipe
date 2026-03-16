@@ -197,9 +197,7 @@ export class PipelineWatcher {
             );
           }
 
-          if (this.options.onOutput) {
-            this.options.onOutput(files);
-          }
+          this.options.onOutput?.(files);
         }
       } catch (error) {
         if (this.options.cacheDirectory) {
