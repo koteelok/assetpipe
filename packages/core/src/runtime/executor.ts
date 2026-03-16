@@ -19,7 +19,7 @@ export type PipelineExecutorAPI = Simplify<
   {
     ignores: IgnoreInfo[];
     queries: QueryInfo[];
-  } & OnlyAsyncMethods<PipelineExecutor>
+  } & Omit<OnlyAsyncMethods<PipelineExecutor>, "init">
 >;
 
 export async function createExecutor(options: AssetpipeOptions) {
@@ -33,9 +33,9 @@ export async function createExecutor(options: AssetpipeOptions) {
     );
   }
 
-  api = api as unknown as PipelineExecutorAPI;
-
   const { ignores, queries } = await api.init(options);
+
+  api = api as unknown as PipelineExecutorAPI;
 
   api.queries = queries;
   api.ignores = ignores;
