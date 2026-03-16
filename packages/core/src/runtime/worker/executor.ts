@@ -11,6 +11,7 @@ import type { File } from "../../types";
 import type { AssetpipeOptions } from "../options";
 import { PipelineCache } from "./cache";
 import { PipelineState } from "./state";
+import { exists } from "../../utils/exists";
 
 declare global {
   var CURRENT_CACHE: PipelineCache | undefined;
@@ -108,12 +109,7 @@ export class PipelineExecutor {
       const basePath = path.resolve(dirname(this.options.entry), state.base);
 
       if (state.glob === "") {
-        const exists = await stat(basePath).then(
-          () => true,
-          () => false,
-        );
-
-        if (!exists) {
+        if (!(await exists(basePath))) {
           throw new Error(
             `[${query}] Query error. File ${basePath} not found.`,
           );

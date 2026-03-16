@@ -30,13 +30,13 @@ export class PipelineCache {
   public tempFilesPath!: string;
   public resultsPath!: string;
   public sourceCodeSnapshotsPath!: string;
-  public inputsSnapshotsPath!: string;
-  public inputFiles!: Set<string>;
-  public inputDirectories!: string[];
+  public querySnapshotsPath!: string;
+  public codeFiels!: Set<string>;
+  public codeDirectories!: string[];
 
   async init() {
-    this.inputFiles = await parseImportsDeep(this.options.entry);
-    this.inputDirectories = collapsePaths(this.inputFiles);
+    this.codeFiels = await parseImportsDeep(this.options.entry);
+    this.codeDirectories = collapsePaths(this.codeFiels);
 
     const entryHash = shortHash(path.resolve(this.options.entry));
     this.resultsPath = path.join(
@@ -48,11 +48,11 @@ export class PipelineCache {
       this.options.cacheDirectory,
       "sourceCode",
     );
-    this.inputsSnapshotsPath = path.join(this.options.cacheDirectory, "inputs");
+    this.querySnapshotsPath = path.join(this.options.cacheDirectory, "queries");
     this.tempFilesPath = path.join(this.options.cacheDirectory, "temp");
 
     await mkdir(this.sourceCodeSnapshotsPath, { recursive: true });
-    await mkdir(this.inputsSnapshotsPath, { recursive: true });
+    await mkdir(this.querySnapshotsPath, { recursive: true });
     await mkdir(this.tempFilesPath, { recursive: true });
   }
 
@@ -63,8 +63,8 @@ export class PipelineCache {
       );
       this.resulsCache = structuredClone(this.resulsCacheBackup);
 
-      let inputChanged = false;
-      for (const directory of this.inputDirectories) {
+      let codeChanged = false;
+      for (const directory of this.codeDirectories) {
         const snapshotPath = path.join(
           this.sourceCodeSnapshotsPath,
           shortHash(directory),
@@ -76,19 +76,19 @@ export class PipelineCache {
           const events = await getEventsSince(directory, snapshotPath);
 
           for (const event of events) {
-            if (this.inputFiles.has(event.path)) {
-              inputChanged = true;
+            if (this.codeFiels.has(event.path)) {
+              codeChanged = true;
               break;
             }
           }
         } else {
           await writeSnapshot(directory, snapshotPath);
-          inputChanged = true;
+          codeChanged = true;
           break;
         }
       }
 
-      if (inputChanged) {
+      if (codeChanged) {
         this.clear();
         await this.saveResults();
       }
@@ -140,9 +140,15 @@ export class PipelineCache {
           const matcher = pipeline.matchers[query];
           const base = path.resolve(dirname(this.options.entry), state.base);
           const snapshotPath = path.join(
-            this.inputsSnapshotsPath,
+            this.querySnapshotsPath,
             shortHash(query),
           );
+
+          if (!(await exists(base))) {
+            throw new Error(
+              `Failed query (${path.join(pipeline.context, query)}). Directory does not exist: ${base}`,
+            );
+          }
 
           eventsPromises[state.base] ??= (async () => {
             if (await exists(snapshotPath)) {

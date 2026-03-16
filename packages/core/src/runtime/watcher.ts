@@ -6,6 +6,7 @@ import picomatch from "picomatch";
 
 import type { File } from "../types";
 import { collapsePaths, debounceAsync, parseImportsDeep } from "../utils";
+import { exists } from "../utils/exists";
 import { createExecutor, type PipelineExecutorAPI } from "./executor";
 import type { AssetpipeOptions } from "./options";
 
@@ -47,15 +48,15 @@ export class PipelineWatcher {
   private sourceCodeSubscriptions?: AsyncSubscription[];
 
   private async subscribeToSourceCode() {
-    const inputFiles = await parseImportsDeep(this.options.entry);
-    const inputDirectories = collapsePaths(inputFiles);
+    const codeFiles = await parseImportsDeep(this.options.entry);
+    const codeDirectories = collapsePaths(codeFiles);
 
     const subscriptions = [];
-    for (const directory of inputDirectories) {
+    for (const directory of codeDirectories) {
       subscriptions.push(
         subscribe(directory, (errs, events) => {
           for (const event of events) {
-            if (inputFiles.has(event.path)) {
+            if (codeFiles.has(event.path)) {
               this.onSourceCodeChange.call();
               break;
             }
@@ -105,11 +106,18 @@ export class PipelineWatcher {
       const info = this.executor.queries[pipelineIndex];
 
       for (let queryIndex = 0; queryIndex < info.query.length; queryIndex++) {
+        const query = info.query[queryIndex];
         const state = info.states[info.query[queryIndex]];
         const basePath = path.resolve(dirname(this.options.entry), state.base);
         const matcher = picomatch(state.glob, {
           windows: process.platform === "win32",
         });
+
+        if (!(await exists(basePath))) {
+          console.warn(
+            `Failed query (${path.join(info.context, query)}). Directory does not exist: ${basePath}`,
+          );
+        }
 
         subscriptions.push(
           subscribe(
