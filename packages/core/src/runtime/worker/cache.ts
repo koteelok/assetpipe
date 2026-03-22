@@ -79,7 +79,6 @@ export class PipelineCache {
             }
           }
         } else {
-          await writeSnapshot(directory, snapshotPath);
           codeChanged = true;
           break;
         }
@@ -107,6 +106,15 @@ export class PipelineCache {
       "utf-8",
     );
     this.resulsCacheBackup = structuredClone(this.resulsCache);
+
+    for (const directory of this.codeDirectories) {
+      const snapshotPath = path.join(
+        this.sourceCodeSnapshotsPath,
+        shortHash(directory),
+      );
+
+      await writeSnapshot(directory, snapshotPath);
+    }
   }
 
   clear() {
@@ -149,7 +157,9 @@ export class PipelineCache {
 
           eventsPromises[state.base] ??= (async () => {
             if (await exists(snapshotPath)) {
-              return getEventsSince(base, snapshotPath, { ignore });
+              const events = await getEventsSince(base, snapshotPath, { ignore });
+              await writeSnapshot(base, snapshotPath, { ignore });
+              return events;
             } else {
               await writeSnapshot(base, snapshotPath, { ignore });
             }
@@ -158,6 +168,11 @@ export class PipelineCache {
           const events = await eventsPromises[state.base];
 
           if (!events) {
+            pipeline.cacheHit = false;
+            return;
+          }
+
+          if (events.length === 0) {
             pipeline.cacheHit = true;
             return;
           }
@@ -168,20 +183,20 @@ export class PipelineCache {
               continue;
             }
 
-            pipeline.cacheHit = true;
-            return;
+            pipeline.cacheHit = false;
+            pipeline.cacheMisses.add(event.path);
           }
         }),
       ),
     );
   }
 
-  async computeCacheHits(parent: Pipeline) {
+  async waterfallCacheHits(parent: Pipeline) {
     if (GroupPipeline.is(parent)) {
       parent.cacheHit = true;
 
       for (const child of parent.children) {
-        this.computeCacheHits(child);
+        this.waterfallCacheHits(child);
 
         if (InteractivePipeline.is(child) && !child.cacheHit) {
           parent.cacheHit = false;
@@ -200,7 +215,7 @@ export class PipelineCache {
       for (let i = 0; i < parent.commands.length; i++) {
         const command = parent.commands[i];
         if (command.type === "pull") {
-          this.computeCacheHits(command.pipeline);
+          this.waterfallCacheHits(command.pipeline);
 
           if (
             InteractivePipeline.is(command.pipeline) &&

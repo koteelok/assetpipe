@@ -201,7 +201,7 @@ export class PipelineExecutor {
       this.filterAllQueryResults();
 
       if (this.cache) {
-        this.cache.computeCacheHits(this.state.root);
+        this.cache.waterfallCacheHits(this.state.root);
         globalThis.CURRENT_CACHE = this.cache;
       }
 
