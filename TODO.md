@@ -8,10 +8,11 @@
   - [ ] TSConfig aliases
   - [ ] Custom aliases
 
-- [ ] Watch mode (CLI only?)
+- [x] Watch mode
 
-- [ ] Caching (CLI only?)
-  - [ ] Skip execution
+- [x] Caching
+  - [x] Skip execution
+  - [x] Group cache folders under source code hash folder
   - [ ] Cleanup unused temp files
 
 - [ ] Vite integration

@@ -38,18 +38,15 @@ export class PipelineCache {
     this.codeFiels = await parseImportsDeep(this.options.entry);
     this.codeDirectories = collapsePaths(this.codeFiels);
 
-    const entryHash = shortHash(path.resolve(this.options.entry));
-    this.resultsPath = path.join(
+    const entryPath = path.join(
       this.options.cacheDirectory,
-      "results",
-      entryHash,
+      shortHash(path.resolve(this.options.entry)),
     );
-    this.sourceCodeSnapshotsPath = path.join(
-      this.options.cacheDirectory,
-      "sourceCode",
-    );
-    this.querySnapshotsPath = path.join(this.options.cacheDirectory, "queries");
-    this.tempFilesPath = path.join(this.options.cacheDirectory, "temp");
+
+    this.resultsPath = path.join(entryPath, "results");
+    this.sourceCodeSnapshotsPath = path.join(entryPath, "sourceCode");
+    this.querySnapshotsPath = path.join(entryPath, "queries");
+    this.tempFilesPath = path.join(entryPath, "temp");
 
     await mkdir(this.sourceCodeSnapshotsPath, { recursive: true });
     await mkdir(this.querySnapshotsPath, { recursive: true });
