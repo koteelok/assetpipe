@@ -14,10 +14,34 @@ import {
 import { clonePipeline } from "../../utils";
 import type { AssetpipeOptions } from "../options";
 
+interface IgnoreInfo {
+  context: string;
+  query: string[];
+}
+
+interface QueryInfo {
+  context: string;
+  query: string[];
+  states: Record<
+    string,
+    {
+      base: string;
+      glob: string;
+    }
+  >;
+}
+
+export interface SerializedExecutorState {
+  queryPipelines: QueryInfo[];
+  ignorePipelines: IgnoreInfo[];
+  ignorePatterns: string[];
+}
+
 export class PipelineState {
   public root!: Pipeline;
   public queryPipelines: QueryPipeline[] = [];
   public ignorePipelines: IgnorePipeline[] = [];
+  public ignorePatterns: string[] = [];
   public interactivePipelines: InteractivePipeline[] = [];
 
   private constructor() {}
@@ -64,6 +88,11 @@ export class PipelineState {
       if (!this.ignorePipelines.includes(parent)) {
         this.buildMatchers(parent);
         this.ignorePipelines.push(parent);
+        for (const pattern of parent.query) {
+          this.ignorePatterns.push(
+            path.join(parent.context, pattern).replace(/\\/g, "/"),
+          );
+        }
       }
     }
 
@@ -82,6 +111,30 @@ export class PipelineState {
     }
 
     return counter;
+  }
+
+  public serialize(): SerializedExecutorState {
+    return {
+      ignorePipelines: this.ignorePipelines.map((pipeline) => ({
+        context: pipeline.context,
+        query: pipeline.query,
+      })),
+
+      queryPipelines: this.queryPipelines.map((pipeline) => ({
+        context: pipeline.context,
+        query: pipeline.query,
+        states: pipeline.query.reduce((acc, query) => {
+          const state = pipeline.states[query];
+          acc[query] = {
+            base: state.base,
+            glob: state.glob,
+          };
+          return acc;
+        }, {} as any),
+      })),
+
+      ignorePatterns: this.ignorePatterns,
+    };
   }
 
   public static async create(options: AssetpipeOptions) {
@@ -104,6 +157,7 @@ export class PipelineState {
     const state = new PipelineState();
     state.root = clonePipeline(pipeline);
     state.prepassPipeline(state.root);
+
     return state;
   }
 }

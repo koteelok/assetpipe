@@ -10,3 +10,4 @@ if (parentPort) {
 
 export type { PipelineCache } from "./cache";
 export * from "./executor";
+export type { SerializedExecutorState } from "./state";

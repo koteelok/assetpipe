@@ -6,7 +6,6 @@ import { Worker } from "worker_threads";
 
 import type { File } from "../types";
 import type { AssetpipeOptions } from "./options";
-import type { IgnoreInfo, QueryInfo } from "./worker";
 import { PipelineExecutor } from "./worker";
 
 type OnlyAsyncMethods<T> = {
@@ -16,10 +15,7 @@ type OnlyAsyncMethods<T> = {
 };
 
 export type PipelineExecutorAPI = Simplify<
-  {
-    ignores: IgnoreInfo[];
-    queries: QueryInfo[];
-  } & Omit<OnlyAsyncMethods<PipelineExecutor>, "init">
+  Omit<OnlyAsyncMethods<PipelineExecutor>, "init">
 >;
 
 export async function createExecutor(options: AssetpipeOptions) {
@@ -33,19 +29,14 @@ export async function createExecutor(options: AssetpipeOptions) {
     );
   }
 
-  const { ignores, queries } = await api.init({
+  const state = await api.init({
     entry: options.entry,
     cacheDirectory: options.cacheDirectory,
     outputDirectory: options.outputDirectory,
     useWorker: options.useWorker,
   });
 
-  api = api as unknown as PipelineExecutorAPI;
-
-  api.queries = queries;
-  api.ignores = ignores;
-
-  return api;
+  return { state, executor: api as PipelineExecutorAPI };
 }
 
 type AssetpipeRunOptions = AssetpipeOptions & {
@@ -53,7 +44,7 @@ type AssetpipeRunOptions = AssetpipeOptions & {
 };
 
 export async function run(options: AssetpipeRunOptions) {
-  const executor = await createExecutor(options);
+  const { executor } = await createExecutor(options);
   await executor.hitQueriesAgainstCache();
   await executor.loadResultsFromCache();
   await executor.executeAllQueries();

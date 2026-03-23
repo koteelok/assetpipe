@@ -115,6 +115,31 @@ export class PipelineCache {
 
       await writeSnapshot(directory, snapshotPath);
     }
+
+    const writePromises: Record<string, Promise<string>> = {};
+
+    await Promise.all(
+      this.state.queryPipelines.flatMap((pipeline) =>
+        Object.keys(pipeline.states).map(async (query) => {
+          const state = pipeline.states[query];
+          const base = path.resolve(dirname(this.options.entry), state.base);
+          const snapshotPath = path.join(
+            this.querySnapshotsPath,
+            shortHash(query),
+          );
+
+          if (!(await exists(base))) {
+            throw new Error(
+              `Failed query (${path.join(pipeline.context, query)}). Directory does not exist: ${base}`,
+            );
+          }
+
+          writePromises[state.base] ??= writeSnapshot(base, snapshotPath, {
+            ignore: this.state.ignorePatterns,
+          });
+        }),
+      ),
+    );
   }
 
   clear() {
@@ -123,19 +148,6 @@ export class PipelineCache {
   }
 
   async hitQueries() {
-    const ignore: string[] = [];
-    for (const pipeline of this.state.ignorePipelines) {
-      if (Array.isArray(pipeline.query)) {
-        for (const query of pipeline.query) {
-          ignore.push(path.join(pipeline.context, query).replace(/\\/g, "/"));
-        }
-      } else {
-        ignore.push(
-          path.join(pipeline.context, pipeline.query).replace(/\\/g, "/"),
-        );
-      }
-    }
-
     const eventsPromises: Record<string, Promise<Event[] | undefined>> = {};
 
     await Promise.all(
@@ -157,11 +169,9 @@ export class PipelineCache {
 
           eventsPromises[state.base] ??= (async () => {
             if (await exists(snapshotPath)) {
-              const events = await getEventsSince(base, snapshotPath, { ignore });
-              await writeSnapshot(base, snapshotPath, { ignore });
-              return events;
-            } else {
-              await writeSnapshot(base, snapshotPath, { ignore });
+              return getEventsSince(base, snapshotPath, {
+                ignore: this.state.ignorePatterns,
+              });
             }
           })();
 

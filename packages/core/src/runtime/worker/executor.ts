@@ -17,23 +17,6 @@ declare global {
   var CURRENT_CACHE: PipelineCache | undefined;
 }
 
-export interface IgnoreInfo {
-  context: string;
-  query: string[];
-}
-
-export interface QueryInfo {
-  context: string;
-  query: string[];
-  states: Record<
-    string,
-    {
-      base: string;
-      glob: string;
-    }
-  >;
-}
-
 export class PipelineExecutor {
   public state!: PipelineState;
   public cache?: PipelineCache;
@@ -54,31 +37,7 @@ export class PipelineExecutor {
       await this.cache.init();
     }
 
-    const ignores: IgnoreInfo[] = [];
-    for (const pipeline of this.state.ignorePipelines) {
-      ignores.push({
-        context: pipeline.context,
-        query: pipeline.query,
-      });
-    }
-
-    const queries: QueryInfo[] = [];
-    for (const pipeline of this.state.queryPipelines) {
-      queries.push({
-        context: pipeline.context,
-        query: pipeline.query,
-        states: pipeline.query.reduce((acc, query) => {
-          const state = pipeline.states[query];
-          acc[query] = {
-            base: state.base,
-            glob: state.glob,
-          };
-          return acc;
-        }, {} as any),
-      });
-    }
-
-    return { ignores, queries };
+    return this.state.serialize();
   }
 
   public async abort() {

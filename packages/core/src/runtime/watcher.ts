@@ -9,6 +9,7 @@ import { collapsePaths, debounceAsync, parseImportsDeep } from "../utils";
 import { exists } from "../utils/exists";
 import { createExecutor, type PipelineExecutorAPI } from "./executor";
 import type { AssetpipeOptions } from "./options";
+import type { SerializedExecutorState } from "./worker";
 
 type AssetpipeWatcherOptions = AssetpipeOptions & {
   onOutput?: (files: File[]) => void;
@@ -22,15 +23,24 @@ export class PipelineWatcher {
   async spawn() {
     if (this.active) return;
     this.active = true;
+
     if (this.options.outputDirectory) {
       await mkdir(this.options.outputDirectory, { recursive: true });
     }
+
     this.onSourceCodeChange.enable();
-    this.executor = await createExecutor(this.options);
+
+    const { executor, state } = await createExecutor(this.options);
+    this.executor = executor;
+    this.state = state;
+    await this.executor.hitQueriesAgainstCache();
+    await this.executor.loadResultsFromCache();
     await this.executor.executeAllQueries();
+
     await this.subscribeToSourceCode();
     await this.subscribeToQueries();
     await this.run();
+
     this.onQueryTriggered.enable();
   }
 
@@ -45,6 +55,7 @@ export class PipelineWatcher {
   }
 
   private executor!: PipelineExecutorAPI;
+  private state!: SerializedExecutorState;
   private sourceCodeSubscriptions?: AsyncSubscription[];
 
   private async subscribeToSourceCode() {
@@ -87,23 +98,16 @@ export class PipelineWatcher {
   private querySubscriptions?: AsyncSubscription[];
 
   private async subscribeToQueries() {
-    const ignore = [];
-    for (const info of this.executor.ignores) {
-      for (const query of info.query) {
-        ignore.push(path.join(info.context, query).replace(/\\/g, "/"));
-      }
-    }
-
     const subscriptions = [];
-    const subscriptionOptions = { ignore };
+    const subscriptionOptions = { ignore: this.state.ignorePatterns };
     const pendingSubmissions = new Set<Promise<void>>();
 
     for (
       let pipelineIndex = 0;
-      pipelineIndex < this.executor.queries.length;
+      pipelineIndex < this.state.queryPipelines.length;
       pipelineIndex++
     ) {
-      const info = this.executor.queries[pipelineIndex];
+      const info = this.state.queryPipelines[pipelineIndex];
 
       for (let queryIndex = 0; queryIndex < info.query.length; queryIndex++) {
         const query = info.query[queryIndex];
