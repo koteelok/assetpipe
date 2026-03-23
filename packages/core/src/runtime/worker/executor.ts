@@ -14,7 +14,7 @@ import { PipelineCache } from "./cache";
 import { PipelineState } from "./state";
 
 declare global {
-  var CURRENT_CACHE: PipelineCache | undefined;
+  var CURRENT_TEMP_DIR: string | undefined;
 }
 
 export class PipelineExecutor {
@@ -42,6 +42,10 @@ export class PipelineExecutor {
 
   public async abort() {
     this.abortController?.abort();
+  }
+
+  public async cacheTempDirectory() {
+    return this.cache?.tempFilesPath;
   }
 
   public async saveResultsToCache(): Promise<void> {
@@ -152,7 +156,7 @@ export class PipelineExecutor {
     pipeline.cacheMisses.add(eventPath);
   }
 
-  public async computePipelineResults() {
+  public async computePipelineResults(tempDirectory: string) {
     this.abortController?.abort();
     this.abortController = new AbortController();
 
@@ -161,18 +165,15 @@ export class PipelineExecutor {
 
       if (this.cache) {
         this.cache.waterfallCacheHits(this.state.root);
-        globalThis.CURRENT_CACHE = this.cache;
       }
 
       for (const pipeline of this.state.interactivePipelines) {
         pipeline.resultPromise = undefined;
       }
 
+      globalThis.CURRENT_TEMP_DIR = tempDirectory;
       await this.computeResult(this.state.root, this.abortController.signal);
-
-      if (this.cache) {
-        globalThis.CURRENT_CACHE = undefined;
-      }
+      globalThis.CURRENT_TEMP_DIR = undefined;
 
       return this.state.root.result;
     }

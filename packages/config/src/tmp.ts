@@ -1,13 +1,19 @@
-import type { PipelineCache } from "@assetpipe/core/worker";
 import { randomUUID } from "crypto";
-import { tmpdir as osTempDir } from "os";
 
-declare const CURRENT_CACHE: PipelineCache | undefined;
+declare const CURRENT_TEMP_DIR: string | undefined;
 
 export function tmpdir(): string {
-  return CURRENT_CACHE?.tempFilesPath ?? osTempDir();
+  if (!CURRENT_TEMP_DIR) {
+    throw new Error("tmpdir called outside of a pipeline");
+  }
+
+  return CURRENT_TEMP_DIR;
 }
 
 export function tmpfile(): string {
-  return `${tmpdir()}/${randomUUID()}`;
+  if (!CURRENT_TEMP_DIR) {
+    throw new Error("tmpfile called outside of a pipeline");
+  }
+
+  return `${CURRENT_TEMP_DIR}/${randomUUID()}`;
 }

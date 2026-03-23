@@ -1,6 +1,8 @@
 import * as comlink from "comlink";
 import nodeEndpoint from "comlink/dist/umd/node-adapter";
-import { copyFile, mkdir } from "fs/promises";
+import { randomUUID } from "crypto";
+import { copyFile, mkdir, rm } from "fs/promises";
+import { tmpdir } from "os";
 import type { Simplify } from "type-fest";
 import { Worker } from "worker_threads";
 
@@ -40,16 +42,38 @@ export async function createExecutor(options: AssetpipeOptions) {
 }
 
 type AssetpipeRunOptions = AssetpipeOptions & {
-  onOutput?: (files: File[]) => void;
+  onOutput?: (files: File[]) => Promise<void>;
 };
 
 export async function run(options: AssetpipeRunOptions) {
+  if (!options.outputDirectory && !options.onOutput) {
+    throw new Error("Either outputDirectory or onOutput must be provided");
+  }
+
   const { executor } = await createExecutor(options);
-  await executor.hitQueriesAgainstCache();
-  await executor.loadResultsFromCache();
+
+  if (options.cacheDirectory) {
+    await executor.hitQueriesAgainstCache();
+    await executor.loadResultsFromCache();
+  }
+
   await executor.executeAllQueries();
-  const files = await executor.computePipelineResults();
-  await executor.saveResultsToCache();
+
+  let tempDirectory: string;
+  if (options.cacheDirectory) {
+    const cacheTempDirectory = await executor.cacheTempDirectory();
+    if (!cacheTempDirectory) {
+      throw new Error(
+        "Failed to acquire cache temp directory from PipelineExecutorAPI",
+      );
+    }
+    tempDirectory = cacheTempDirectory;
+  } else {
+    tempDirectory = `${tmpdir()}/${randomUUID()}`;
+    await mkdir(tempDirectory, { recursive: true });
+  }
+
+  const files = await executor.computePipelineResults(tempDirectory);
 
   if (options.outputDirectory) {
     await mkdir(options.outputDirectory, { recursive: true });
@@ -64,6 +88,14 @@ export async function run(options: AssetpipeRunOptions) {
       );
     }
 
-    options.onOutput?.(files);
+    if (options.onOutput) {
+      await options.onOutput(files);
+    }
+  }
+
+  if (options.cacheDirectory) {
+    await executor.saveResultsToCache();
+  } else {
+    await rm(tempDirectory, { recursive: true });
   }
 }

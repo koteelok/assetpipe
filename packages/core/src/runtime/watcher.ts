@@ -1,6 +1,8 @@
 import type { AsyncSubscription } from "@parcel/watcher";
 import { subscribe } from "@parcel/watcher";
-import { copyFile, mkdir } from "fs/promises";
+import { randomUUID } from "crypto";
+import { copyFile, mkdir, rm } from "fs/promises";
+import { tmpdir } from "os";
 import path, { dirname } from "path";
 import picomatch from "picomatch";
 
@@ -24,17 +26,33 @@ export class PipelineWatcher {
     if (this.active) return;
     this.active = true;
 
-    if (this.options.outputDirectory) {
-      await mkdir(this.options.outputDirectory, { recursive: true });
-    }
-
     this.onSourceCodeChange.enable();
 
     const { executor, state } = await createExecutor(this.options);
     this.executor = executor;
     this.state = state;
-    await this.executor.hitQueriesAgainstCache();
-    await this.executor.loadResultsFromCache();
+
+    if (this.options.cacheDirectory) {
+      const cacheTempDirectory = await this.executor.cacheTempDirectory();
+      if (!cacheTempDirectory) {
+        throw new Error(
+          "Failed to acquire cache temp directory from PipelineExecutorAPI",
+        );
+      }
+      this.tempDirectory = cacheTempDirectory;
+    } else {
+      this.tempDirectory = `${tmpdir()}/${randomUUID()}`;
+      await mkdir(this.tempDirectory, { recursive: true });
+    }
+
+    if (this.options.outputDirectory) {
+      await mkdir(this.options.outputDirectory, { recursive: true });
+    }
+
+    if (this.options.cacheDirectory) {
+      await this.executor.hitQueriesAgainstCache();
+      await this.executor.loadResultsFromCache();
+    }
     await this.executor.executeAllQueries();
 
     await this.subscribeToSourceCode();
@@ -48,12 +66,18 @@ export class PipelineWatcher {
     if (!this.active) return;
     this.active = false;
     await Promise.all([
+      (async () => {
+        if (!this.options.cacheDirectory) {
+          await rm(this.tempDirectory, { recursive: true });
+        }
+      })(),
       this.onQueryTriggered.disable(),
       this.unsubscribeFromSourceCode(),
       this.unsubscribeFromQueries(),
     ]);
   }
 
+  private tempDirectory!: string;
   private executor!: PipelineExecutorAPI;
   private state!: SerializedExecutorState;
   private sourceCodeSubscriptions?: AsyncSubscription[];
@@ -190,7 +214,9 @@ export class PipelineWatcher {
       } catch {}
 
       try {
-        const files = await this.executor.computePipelineResults();
+        const files = await this.executor.computePipelineResults(
+          this.tempDirectory,
+        );
 
         if (this.options.cacheDirectory) {
           await this.executor.saveResultsToCache();
@@ -228,5 +254,9 @@ export class PipelineWatcher {
 }
 
 export async function watch(options: AssetpipeWatcherOptions) {
+  if (!options.outputDirectory && !options.onOutput) {
+    throw new Error("Either outputDirectory or onOutput must be provided");
+  }
+
   return new PipelineWatcher(options);
 }

@@ -13,8 +13,8 @@
 - [x] Caching
   - [x] Skip execution
   - [x] Group cache folders under source code hash folder
-  - [ ] Cleanup unused temp files
-  - [ ] `useCache` config option
+  - [ ] Cleanup unused temp files in cache
+  - [x] ~~useCache config option~~ If cacheDirectory is not provided, use os temp dir and cleanup after
 
 - [ ] Vite integration
   - [ ] access resulted assets via module imports

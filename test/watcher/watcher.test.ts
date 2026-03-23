@@ -1,8 +1,8 @@
 import { watch } from "@assetpipe/core/runtime";
 import { File } from "@assetpipe/core/types";
-import { mkdir, readFile, rm, unlink, writeFile } from "fs/promises";
+import { readFile, unlink, writeFile } from "fs/promises";
 import { resolve } from "path";
-import { afterAll, beforeAll, describe, expect, Mock, test, vi } from "vitest";
+import { describe, expect, Mock, test, vi } from "vitest";
 
 function waitForCalls(spy: Mock, callCount: number, timeout = 10_000) {
   return new Promise<void>((resolve, reject) => {
