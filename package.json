@@ -8,6 +8,7 @@
   "scripts": {
     "build": "nx run-many -t build -tui",
     "test": "vitest run",
+    "test:clean": "rimraf --glob test/**/{output,cache}",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --check",
@@ -24,6 +25,7 @@
     "globals": "^16.4.0",
     "nx": "21.5.3",
     "prettier": "^3.6.2",
+    "rimraf": "^6.1.3",
     "tsdown": "^0.15.6",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.52.0",

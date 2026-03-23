@@ -1,9 +1,9 @@
 import { run } from "@assetpipe/core/runtime";
-import { readdir, readFile } from "fs/promises";
+import { readdir,readFile } from "fs/promises";
 import { resolve } from "path";
 import { expect, test } from "vitest";
 
-test("useWorker: false", async () => {
+test("context(): resolves inner pipeline queries relative to the given root", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
   const outputDirectory = resolve(__dirname, "output");
   const cacheDirectory = resolve(__dirname, "cache");
@@ -11,13 +11,13 @@ test("useWorker: false", async () => {
   await run({ entry, outputDirectory, cacheDirectory, useWorker: false });
 
   const resultFiles = await readdir(outputDirectory);
+  expect(resultFiles).toContain("ctx_output.txt");
 
-  expect(resultFiles).toContain("file.txt");
-
-  const fileContent = await readFile(
-    resolve(outputDirectory, "file.txt"),
+  const content = await readFile(
+    resolve(outputDirectory, "ctx_output.txt"),
     "utf-8",
   );
 
-  expect(fileContent).toConsistOf("1 | 2 | 3 | 4");
+  // All three txt values should be present, joined by |, sorted
+  expect(content).toConsistOf("alpha|beta|gamma");
 });

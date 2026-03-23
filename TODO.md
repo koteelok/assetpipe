@@ -14,6 +14,7 @@
   - [x] Skip execution
   - [x] Group cache folders under source code hash folder
   - [ ] Cleanup unused temp files
+  - [ ] `useCache` config option
 
 - [ ] Vite integration
   - [ ] access resulted assets via module imports

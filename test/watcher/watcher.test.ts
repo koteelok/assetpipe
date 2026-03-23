@@ -34,20 +34,6 @@ describe("watcher mode", () => {
   const cacheDirectory = resolve(__dirname, "cache");
   const assetsDirectory = resolve(__dirname, "assets");
 
-  beforeAll(async () => {
-    await mkdir(assetsDirectory, { recursive: true });
-
-    await Promise.all(
-      [1, 2, 3, 4].map((i) =>
-        writeFile(resolve(assetsDirectory, `${i}.txt`), `${i}`),
-      ),
-    );
-  });
-
-  afterAll(async () => {
-    await rm(assetsDirectory, { recursive: true });
-  });
-
   test("initial spawn produces output", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
 
