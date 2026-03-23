@@ -219,6 +219,23 @@ export class PipelineWatcher {
         );
 
         if (this.options.cacheDirectory) {
+          const diff = await this.executor.getCacheDiff();
+          if (diff) {
+            await Promise.all(
+              diff.removedTempFiles.map((file) =>
+                rm(file, { force: true }),
+              ),
+            );
+
+            if (this.options.outputDirectory) {
+              await Promise.all(
+                diff.removedOutputFiles.map((basename) =>
+                  rm(`${this.options.outputDirectory}/${basename}`, { force: true }),
+                ),
+              );
+            }
+          }
+
           await this.executor.saveResultsToCache();
         }
 

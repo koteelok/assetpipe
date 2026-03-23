@@ -64,6 +64,10 @@ export class PipelineExecutor {
     return this.cache?.restoreFromBackup();
   }
 
+  public async getCacheDiff() {
+    return this.cache?.getDiff();
+  }
+
   public async executeQuery(pipeline: QueryPipeline | IgnorePipeline) {
     pipeline.queryResult = [];
 

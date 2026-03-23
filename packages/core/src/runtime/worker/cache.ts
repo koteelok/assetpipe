@@ -21,6 +21,7 @@ type AssetpipeCacheOptions = SetRequired<AssetpipeOptions, "cacheDirectory">;
 export class PipelineCache {
   private resulsCacheBackup: Record<string, File[]> = {};
   private resulsCache: Record<string, File[]> = {};
+  private invalidated = false;
 
   constructor(
     private state: PipelineState,
@@ -58,7 +59,7 @@ export class PipelineCache {
       this.resulsCacheBackup = JSON.parse(
         await readFile(this.resultsPath, "utf-8"),
       );
-      this.resulsCache = structuredClone(this.resulsCacheBackup);
+      this.resulsCache = {};
 
       let codeChanged = false;
       for (const directory of this.codeDirectories) {
@@ -85,16 +86,17 @@ export class PipelineCache {
       }
 
       if (codeChanged) {
-        this.clear();
-        await this.saveResults();
+        this.invalidated = true;
       }
     } catch {
+      this.invalidated = true;
       this.clear();
     }
   }
 
   restoreFromBackup() {
     this.resulsCache = structuredClone(this.resulsCacheBackup);
+    this.invalidated = false;
   }
 
   async saveResults() {
@@ -241,15 +243,56 @@ export class PipelineCache {
   }
 
   has(id: string): boolean {
-    return this.resulsCache![id] !== undefined;
+    if (this.resulsCache[id] !== undefined) return true;
+    if (!this.invalidated && this.resulsCacheBackup[id] !== undefined) return true;
+    return false;
   }
 
   read(id: string): File[] | undefined {
-    return this.resulsCache![id];
+    if (this.resulsCache[id]) return this.resulsCache[id];
+    if (!this.invalidated && this.resulsCacheBackup[id]) {
+      this.resulsCache[id] = this.resulsCacheBackup[id];
+      return this.resulsCache[id];
+    }
+    return undefined;
+  }
+
+  getDiff() {
+    const rootId = this.pipelineKey(this.state.root);
+    const prevOutputs = this.resulsCacheBackup[rootId] || [];
+    const curOutputs = this.resulsCache[rootId] || [];
+
+    const curBasenames = new Set(curOutputs.map((f) => f.basename));
+    const removedOutputFiles = prevOutputs
+      .filter((f) => !curBasenames.has(f.basename))
+      .map((f) => f.basename);
+
+    const curTempFiles = new Set<string>();
+    for (const files of Object.values(this.resulsCache)) {
+      for (const file of files) {
+        if (file.content.startsWith(this.tempFilesPath)) {
+          curTempFiles.add(file.content);
+        }
+      }
+    }
+
+    const removedTempFiles = new Set<string>();
+    for (const files of Object.values(this.resulsCacheBackup)) {
+      for (const file of files) {
+        if (
+          file.content.startsWith(this.tempFilesPath) &&
+          !curTempFiles.has(file.content)
+        ) {
+          removedTempFiles.add(file.content);
+        }
+      }
+    }
+
+    return { removedOutputFiles, removedTempFiles: Array.from(removedTempFiles) };
   }
 
   write(id: string, files: File[]) {
-    this.resulsCache![id] = files;
+    this.resulsCache[id] = files;
   }
 
   pipelineKey(pipeline: Pipeline) {

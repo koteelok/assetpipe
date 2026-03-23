@@ -75,6 +75,25 @@ export async function run(options: AssetpipeRunOptions) {
 
   const files = await executor.computePipelineResults(tempDirectory);
 
+  if (options.cacheDirectory) {
+    const diff = await executor.getCacheDiff();
+    if (diff) {
+      await Promise.all(
+        diff.removedTempFiles.map((file) =>
+          rm(file, { force: true }),
+        ),
+      );
+
+      if (options.outputDirectory) {
+        await Promise.all(
+          diff.removedOutputFiles.map((basename) =>
+            rm(`${options.outputDirectory}/${basename}`, { force: true }),
+          ),
+        );
+      }
+    }
+  }
+
   if (options.outputDirectory) {
     await mkdir(options.outputDirectory, { recursive: true });
   }
