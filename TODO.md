@@ -16,13 +16,13 @@
   - [x] Cleanup unused temp files in cache
   - [x] ~~useCache config option~~ If cacheDirectory is not provided, use os temp dir and cleanup after
 
-- [ ] Vite integration
-  - [ ] access resulted assets via module imports
-  - [ ] custom import resolver API
+- [x] Vite integration
+  - [x] access resulted assets via module imports
+  - [x] custom import resolver API
   - [ ] access module imports in pipelines
-  - [ ] customize dev server behavior after pipeline execution
-  - [ ] working caching
-  - [ ] watch mode on dev
+  - [x] customize dev server behavior after pipeline execution
+  - [x] working caching
+  - [x] watch mode on dev
 
 - [ ] Convert images to other formats
 

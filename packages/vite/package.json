@@ -1,0 +1,49 @@
+{
+  "name": "@assetpipe/vite",
+  "version": "0.1.0",
+  "author": "",
+  "license": "Apache-2.0",
+  "description": "Vite integration for AssetPipe",
+  "main": "./dist/exports.js",
+  "module": "./dist/exports.mjs",
+  "types": "./dist/exports.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/exports.d.mts",
+        "default": "./dist/exports.mjs"
+      },
+      "require": {
+        "types": "./dist/exports.d.ts",
+        "default": "./dist/exports.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "dependencies": {
+    "@assetpipe/core": "*",
+    "sirv": "^3.0.0"
+  },
+  "peerDependencies": {
+    "vite": ">=6"
+  },
+  "nx": {
+    "name": "vite",
+    "targets": {
+      "build": {
+        "inputs": [
+          "{projectRoot}/**/*.ts"
+        ],
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
+      },
+      "dev": {
+        "continuous": true
+      }
+    }
+  }
+}
