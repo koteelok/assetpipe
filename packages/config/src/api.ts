@@ -67,11 +67,11 @@ interface QueryOptions extends AssetpipeMixins.QueryOptions {
 }
 
 /** Select files matching a glob pattern and create a pipeline to process them. */
-export function query(query: QueryLike, options: QueryOptions) {
+export function query(query: QueryLike, options: QueryOptions = {}) {
   const pipeline = new QueryPipeline();
   mixins.QueryPipeline.mix(pipeline, {
-    query: Array.isArray(query) ? [...query] : [query],
     ...options,
+    query: Array.isArray(query) ? [...query] : [query],
   });
   return pipeline;
 }
