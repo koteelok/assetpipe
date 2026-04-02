@@ -1,9 +1,6 @@
 import * as mixins from "@assetpipe/core/pipelines";
 import type { ArrayOr, File, Transformer } from "@assetpipe/core/types";
 
-import type { QueryLike } from "./query";
-import { queryArray } from "./query";
-
 // Fake API-like classes to make user comfortable lol
 
 class Pipeline {}
@@ -47,71 +44,38 @@ class InteractivePipeline {
     return this;
   }
 }
+export type QueryLike = string | string[];
 
 class QueryPipeline extends InteractivePipeline {}
 
-export const select = {
-  parallel(query: QueryLike) {
-    const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mix(pipeline, { query: queryArray(query) });
-    return pipeline;
-  },
+declare global {
+  namespace AssetpipeMixins {
+    interface QueryOptions {}
+  }
+}
 
-  bulk(query: QueryLike) {
-    const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mix(pipeline, {
-      query: queryArray(query),
-      bulk: true,
-    });
-    return pipeline;
-  },
+interface QueryOptions extends AssetpipeMixins.QueryOptions {
+  claim?: boolean;
+  bulk?: boolean;
+  groupBy?: (file: File) => string;
+}
 
-  groupBy(query: QueryLike, callback: (file: File) => string) {
-    const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mix(pipeline, {
-      query: queryArray(query),
-      groupBy: callback,
-    });
-    return pipeline;
-  },
-};
-
-export const claim = {
-  parallel(query: QueryLike) {
-    const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mix(pipeline, {
-      query: queryArray(query),
-      claim: true,
-    });
-    return pipeline;
-  },
-
-  bulk(query: QueryLike) {
-    const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mix(pipeline, {
-      query: queryArray(query),
-      bulk: true,
-      claim: true,
-    });
-    return pipeline;
-  },
-
-  groupBy(query: QueryLike, callback: (file: File) => string) {
-    const pipeline = new QueryPipeline();
-    mixins.QueryPipeline.mix(pipeline, {
-      query: queryArray(query),
-      groupBy: callback,
-      claim: true,
-    });
-    return pipeline;
-  },
-};
+export function query(query: QueryLike, options: QueryOptions) {
+  const pipeline = new QueryPipeline();
+  mixins.QueryPipeline.mix(pipeline, {
+    query: Array.isArray(query) ? [...query] : [query],
+    ...options,
+  });
+  return pipeline;
+}
 
 class IgnorePipeline extends Pipeline {}
 
 export function ignore(query: QueryLike) {
   const pipeline = new IgnorePipeline();
-  mixins.IgnorePipeline.mix(pipeline, { query: queryArray(query) });
+  mixins.IgnorePipeline.mix(pipeline, {
+    query: Array.isArray(query) ? [...query] : [query],
+  });
   return pipeline;
 }
 
