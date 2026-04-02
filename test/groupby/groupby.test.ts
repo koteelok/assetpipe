@@ -3,7 +3,7 @@ import { readdir,readFile } from "fs/promises";
 import { resolve } from "path";
 import { expect, test } from "vitest";
 
-test("select.groupBy: groups files by dirname and produces one bundle per group", async () => {
+test("query with groupBy: groups files by dirname and produces one bundle per group", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
   const outputDirectory = resolve(__dirname, "output");
   const cacheDirectory = resolve(__dirname, "cache");

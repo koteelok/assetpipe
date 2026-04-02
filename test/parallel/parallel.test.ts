@@ -3,7 +3,7 @@ import { readdir,readFile } from "fs/promises";
 import { resolve } from "path";
 import { expect, test } from "vitest";
 
-test("select.parallel: processes each file individually", async () => {
+test("query: processes each file individually", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
   const outputDirectory = resolve(__dirname, "output");
   const cacheDirectory = resolve(__dirname, "cache");

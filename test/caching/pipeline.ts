@@ -1,8 +1,8 @@
-import { select, tmpfile } from "@assetpipe/config";
+import { query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 import { resolve } from "path";
 
-export default select.parallel("assets/*.txt").pipe(async ([file]) => {
+export default query("assets/*.txt", {}).pipe(async ([file]) => {
   const counterFile = resolve(__dirname, "counters.json");
   let counts: Record<string, number> = {};
   try {

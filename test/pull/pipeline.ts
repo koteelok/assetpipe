@@ -1,4 +1,4 @@
-import { select, tmpfile } from "@assetpipe/config";
+import { query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 
 // The txt pipeline processes each .txt file and adds a .proc extension.
@@ -6,8 +6,7 @@ import { readFile, writeFile } from "fs/promises";
 // The main pipeline pulls from both sub-pipelines, then creates a manifest
 // listing all basenames produced.
 
-const txtPipeline = select
-  .parallel("assets/txt/*.txt")
+const txtPipeline = query("assets/txt/*.txt", {})
   .pipe(async ([file]) => {
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
@@ -15,8 +14,7 @@ const txtPipeline = select
     return [{ basename: file.basename + ".proc", dirname: "", content: out }];
   });
 
-const jsonPipeline = select
-  .parallel("assets/json/*.json")
+const jsonPipeline = query("assets/json/*.json", {})
   .pipe(async ([file]) => {
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
@@ -24,8 +22,7 @@ const jsonPipeline = select
     return [{ basename: file.basename + ".dat", dirname: "", content: out }];
   });
 
-export default select
-  .bulk("assets/txt/*.txt")
+export default query("assets/txt/*.txt", { bulk: true })
   .pull(txtPipeline, jsonPipeline)
   .pipe(async (files) => {
     const basenames = files

@@ -3,7 +3,7 @@ import { readdir, readFile } from "fs/promises";
 import { resolve } from "path";
 import { expect, test } from "vitest";
 
-test("claim: claim.bulk() takes ownership so a later select on the same glob sees no files", async () => {
+test("claim: query with claim takes ownership so a later query on the same glob sees no files", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
   const outputDirectory = resolve(__dirname, "output");
   const cacheDirectory = resolve(__dirname, "cache");

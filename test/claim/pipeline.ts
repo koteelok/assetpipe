@@ -1,11 +1,11 @@
-import { claim, group, select, tmpfile } from "@assetpipe/config";
+import { group, query, tmpfile } from "@assetpipe/config";
 import { writeFile } from "fs/promises";
 
-// claim.bulk() takes ownership of *.txt files.
-// A subsequent select.bulk() for the same glob should see no files because
+// query with claim takes ownership of *.txt files.
+// A subsequent query for the same glob should see no files because
 // they were already claimed.
 
-const claimPipeline = claim.bulk("assets/*.txt").pipe(async (files) => {
+const claimPipeline = query("assets/*.txt", { claim: true, bulk: true }).pipe(async (files) => {
   const names = files
     .map((f) => f.basename)
     .sort()
@@ -15,8 +15,7 @@ const claimPipeline = claim.bulk("assets/*.txt").pipe(async (files) => {
   return [{ basename: "claimed.txt", dirname: "", content: out }];
 });
 
-const selectPipeline = select
-  .bulk("assets/*.txt")
+const selectPipeline = query("assets/*.txt", { bulk: true })
   .pipe(async (files) => {
     const names = files
       .map((f) => f.basename)

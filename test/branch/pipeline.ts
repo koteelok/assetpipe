@@ -1,4 +1,4 @@
-import { select, tmpfile } from "@assetpipe/config";
+import { query, tmpfile } from "@assetpipe/config";
 import type { File } from "@assetpipe/core/types";
 import { readFile, writeFile } from "fs/promises";
 
@@ -26,4 +26,4 @@ async function lower(files: File[]): Promise<File[]> {
   );
 }
 
-export default select.bulk("assets/*.txt").branch(upper, lower);
+export default query("assets/*.txt", { bulk: true }).branch(upper, lower);

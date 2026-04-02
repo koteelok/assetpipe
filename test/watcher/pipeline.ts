@@ -1,7 +1,7 @@
-import { select, tmpfile } from "@assetpipe/config";
+import { query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 
-export default select.bulk("assets/*").pipe(async (files) => {
+export default query("assets/*", { bulk: true }).pipe(async (files) => {
   const content = tmpfile();
 
   const text = await Promise.all(
