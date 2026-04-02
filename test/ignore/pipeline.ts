@@ -5,7 +5,7 @@ import { writeFile } from "fs/promises";
 // The select pipeline queries ALL assets — if ignore works, skip.txt won't appear.
 const ignorePipeline = ignore("assets/excluded/**/*");
 
-const contentPipeline = query("assets/**/*.*", { bulk: true }).pipe(async (files) => {
+const contentPipeline = query("assets/**/*.*").pipe(async (files) => {
   const names = files
     .map((f) => f.basename)
     .sort()

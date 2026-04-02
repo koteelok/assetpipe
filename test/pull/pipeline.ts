@@ -6,7 +6,7 @@ import { readFile, writeFile } from "fs/promises";
 // The main pipeline pulls from both sub-pipelines, then creates a manifest
 // listing all basenames produced.
 
-const txtPipeline = query("assets/txt/*.txt")
+const txtPipeline = query("assets/txt/*.txt", { parallel: true })
   .pipe(async ([file]) => {
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
@@ -14,7 +14,7 @@ const txtPipeline = query("assets/txt/*.txt")
     return [{ basename: file.basename + ".proc", dirname: "", content: out }];
   });
 
-const jsonPipeline = query("assets/json/*.json")
+const jsonPipeline = query("assets/json/*.json", { parallel: true })
   .pipe(async ([file]) => {
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
@@ -22,7 +22,7 @@ const jsonPipeline = query("assets/json/*.json")
     return [{ basename: file.basename + ".dat", dirname: "", content: out }];
   });
 
-export default query("assets/txt/*.txt", { bulk: true })
+export default query("assets/txt/*.txt")
   .pull(txtPipeline, jsonPipeline)
   .pipe(async (files) => {
     const basenames = files

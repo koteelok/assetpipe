@@ -5,7 +5,7 @@ import { writeFile } from "fs/promises";
 // A subsequent query for the same glob should see no files because
 // they were already claimed.
 
-const claimPipeline = query("assets/*.txt", { claim: true, bulk: true }).pipe(async (files) => {
+const claimPipeline = query("assets/*.txt", { claim: true }).pipe(async (files) => {
   const names = files
     .map((f) => f.basename)
     .sort()
@@ -15,7 +15,7 @@ const claimPipeline = query("assets/*.txt", { claim: true, bulk: true }).pipe(as
   return [{ basename: "claimed.txt", dirname: "", content: out }];
 });
 
-const selectPipeline = query("assets/*.txt", { bulk: true })
+const selectPipeline = query("assets/*.txt")
   .pipe(async (files) => {
     const names = files
       .map((f) => f.basename)

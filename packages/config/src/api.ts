@@ -60,8 +60,8 @@ declare global {
 interface QueryOptions extends AssetpipeMixins.QueryOptions {
   /** Take ownership of matched files so later queries on the same glob see nothing. */
   claim?: boolean;
-  /** Pass all matched files to the transformer at once instead of one at a time. */
-  bulk?: boolean;
+  /** Process each matched file individually instead of passing all at once. */
+  parallel?: boolean;
   /** Group matched files by key and run the transformer once per group. */
   groupBy?: (file: File) => string;
 }

@@ -272,14 +272,23 @@ export class PipelineExecutor {
       return parent.resultPromise;
     }
 
-    if (QueryPipeline.is(parent) && parent.bulk) {
-      parent.result = await this.executeCommands(
-        parent,
-        parent.filteredQueryResult,
-        signal,
-      );
+    if (QueryPipeline.is(parent) && parent.parallel) {
+      parent.result = [];
 
-      this.cache?.write(this.cache.pipelineKey(parent), parent.result);
+      for (const file of parent.filteredQueryResult) {
+        const cachedFiles =
+          this.cache &&
+          !parent.cacheMisses.has(file.content) &&
+          this.cache.read(this.cache.queryFileKey(parent, file));
+
+        if (cachedFiles) {
+          parent.result.push(...cachedFiles);
+        } else {
+          const files = await this.executeCommands(parent, [file], signal);
+          this.cache?.write(this.cache.queryFileKey(parent, file), files);
+          parent.result.push(...files);
+        }
+      }
 
       resolve();
       return parent.resultPromise;
@@ -326,22 +335,13 @@ export class PipelineExecutor {
     }
 
     if (QueryPipeline.is(parent)) {
-      parent.result = [];
+      parent.result = await this.executeCommands(
+        parent,
+        parent.filteredQueryResult,
+        signal,
+      );
 
-      for (const file of parent.filteredQueryResult) {
-        const cachedFiles =
-          this.cache &&
-          !parent.cacheMisses.has(file.content) &&
-          this.cache.read(this.cache.queryFileKey(parent, file));
-
-        if (cachedFiles) {
-          parent.result.push(...cachedFiles);
-        } else {
-          const files = await this.executeCommands(parent, [file], signal);
-          this.cache?.write(this.cache.queryFileKey(parent, file), files);
-          parent.result.push(...files);
-        }
-      }
+      this.cache?.write(this.cache.pipelineKey(parent), parent.result);
 
       resolve();
       return parent.resultPromise;

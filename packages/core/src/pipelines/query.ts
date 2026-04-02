@@ -15,7 +15,7 @@ export interface QueryPipeline extends InteractivePipeline {
   matchers: Record<string, picomatch.Matcher>;
   claim?: boolean;
   ignore?: boolean;
-  bulk?: boolean;
+  parallel?: boolean;
   groupBy?: (file: File) => string;
 }
 
@@ -34,7 +34,7 @@ export const QueryPipeline = new PipelineMixin<QueryPipeline>(
     obj.matchers = {};
     obj.claim = options.claim;
     obj.ignore = options.ignore;
-    obj.bulk = options.bulk;
+    obj.parallel = options.parallel;
     obj.groupBy = options.groupBy;
     return obj;
   },

@@ -26,4 +26,4 @@ async function lower(files: File[]): Promise<File[]> {
   );
 }
 
-export default query("assets/*.txt", { bulk: true }).branch(upper, lower);
+export default query("assets/*.txt").branch(upper, lower);
