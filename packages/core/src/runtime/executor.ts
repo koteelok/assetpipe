@@ -1,5 +1,5 @@
 import * as comlink from "comlink";
-import nodeEndpoint from "comlink/dist/umd/node-adapter";
+import nodeEndpoint from "comlink/dist/umd/node-adapter.js";
 import { randomUUID } from "crypto";
 import { copyFile, mkdir, rm } from "fs/promises";
 import { tmpdir } from "os";
@@ -9,6 +9,7 @@ import { Worker } from "worker_threads";
 import type { AssetpipeOptions, ExecutionMetadata } from "./options";
 import { PipelineExecutor } from "./worker";
 import path from "path";
+import { fileURLToPath } from "url";
 
 type OnlyAsyncMethods<T> = {
   [K in keyof T as T[K] extends (...args: any[]) => Promise<any>
@@ -26,6 +27,8 @@ export async function createExecutor(options: AssetpipeOptions) {
   if (options.useWorker === false) {
     api = new PipelineExecutor();
   } else {
+    let __dirname =
+      globalThis.__dirname ?? path.dirname(fileURLToPath(import.meta.url));
     api = comlink.wrap<PipelineExecutor>(
       nodeEndpoint(new Worker(`${__dirname}/worker/index.js`)),
     );
