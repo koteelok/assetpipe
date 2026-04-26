@@ -6,19 +6,14 @@ import { tmpdir } from "os";
 import path, { dirname } from "path";
 import picomatch from "picomatch";
 
-import type { File } from "../types";
 import { collapsePaths, debounceAsync, parseImportsDeep } from "../utils";
 import { exists } from "../utils/exists";
 import { createExecutor, type PipelineExecutorAPI } from "./executor";
-import type { AssetpipeOptions } from "./options";
+import type { AssetpipeOptions, ExecutionMetadata } from "./options";
 import type { SerializedExecutorState } from "./worker";
 
-type AssetpipeWatcherOptions = AssetpipeOptions & {
-  onOutput?: (files: File[]) => void;
-};
-
 export class PipelineWatcher {
-  constructor(private options: AssetpipeWatcherOptions) {}
+  constructor(private options: AssetpipeOptions) {}
 
   private active = false;
 
@@ -151,8 +146,10 @@ export class PipelineWatcher {
           subscribe(
             basePath,
             (err, events) => {
-              for (const event of events) {
+              for (let i = 0; i < events.length; i++) {
+                const event = events[i];
                 const relativePath = path.relative(basePath, event.path);
+
                 if (
                   !matcher(relativePath) &&
                   !matcher(relativePath + path.sep)
@@ -213,48 +210,63 @@ export class PipelineWatcher {
         await previousRun;
       } catch {}
 
+      const { outputDirectory, cacheDirectory, onOutput } = this.options;
+
       try {
         const files = await this.executor.computePipelineResults(
           this.tempDirectory,
         );
 
-        if (this.options.cacheDirectory) {
-          const diff = await this.executor.getCacheDiff();
-          if (diff) {
-            await Promise.all(
-              diff.removedTempFiles.map((file) =>
-                rm(file, { force: true }),
-              ),
-            );
+        let outputChanges: ExecutionMetadata | undefined;
 
-            if (this.options.outputDirectory) {
-              await Promise.all(
-                diff.removedOutputFiles.map((basename) =>
-                  rm(`${this.options.outputDirectory}/${basename}`, { force: true }),
-                ),
-              );
-            }
+        if (cacheDirectory) {
+          const redundantTempFiles =
+            await this.executor.getCacheRedundantTempFiles();
+          if (redundantTempFiles) {
+            await Promise.all(
+              redundantTempFiles.map((file) => rm(file, { force: true })),
+            );
+          }
+
+          outputChanges = await this.executor.getExecutionMetadata();
+
+          if (outputChanges && outputDirectory) {
+            await Promise.all(
+              outputChanges.removedFiles.map((file) => {
+                const filePath = path.join(
+                  outputDirectory,
+                  file.dirname,
+                  file.basename,
+                );
+                return rm(filePath, { force: true });
+              }),
+            );
           }
 
           await this.executor.saveResultsToCache();
+        } else {
+          if (outputDirectory) {
+            await rm(outputDirectory, { recursive: true });
+            await mkdir(outputDirectory, { recursive: true });
+          }
         }
 
         if (files) {
-          if (this.options.outputDirectory) {
+          if (outputDirectory) {
             await Promise.all(
-              files.map((file) =>
-                copyFile(
+              files.map((file) => {
+                return copyFile(
                   file.content,
-                  `${this.options.outputDirectory}/${file.basename}`,
-                ),
-              ),
+                  path.join(outputDirectory, file.dirname, file.basename),
+                );
+              }),
             );
           }
 
-          this.options.onOutput?.(files);
+          onOutput?.(files, outputChanges);
         }
       } catch (error) {
-        if (this.options.cacheDirectory) {
+        if (cacheDirectory) {
           await this.executor.restoreCacheFromBackup();
         }
 
@@ -270,7 +282,7 @@ export class PipelineWatcher {
   }
 }
 
-export async function watch(options: AssetpipeWatcherOptions) {
+export async function watch(options: AssetpipeOptions) {
   if (!options.outputDirectory && !options.onOutput) {
     throw new Error("Either outputDirectory or onOutput must be provided");
   }

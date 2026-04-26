@@ -1,3 +1,12 @@
+import { File } from "../types";
+
+export interface ExecutionMetadata {
+  addedFiles: File[];
+  changedFiles: File[];
+  removedFiles: File[];
+  queryTriggers: string[];
+}
+
 export interface AssetpipeOptions {
   entry: string;
   outputDirectory?: string;
@@ -6,4 +15,5 @@ export interface AssetpipeOptions {
    * @default true
    */
   useWorker?: boolean;
+  onOutput?: (files: File[], metadata?: ExecutionMetadata) => void;
 }

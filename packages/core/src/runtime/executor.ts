@@ -6,9 +6,9 @@ import { tmpdir } from "os";
 import type { Simplify } from "type-fest";
 import { Worker } from "worker_threads";
 
-import type { File } from "../types";
-import type { AssetpipeOptions } from "./options";
+import type { AssetpipeOptions, ExecutionMetadata } from "./options";
 import { PipelineExecutor } from "./worker";
+import path from "path";
 
 type OnlyAsyncMethods<T> = {
   [K in keyof T as T[K] extends (...args: any[]) => Promise<any>
@@ -41,18 +41,16 @@ export async function createExecutor(options: AssetpipeOptions) {
   return { state, executor: api as PipelineExecutorAPI };
 }
 
-type AssetpipeRunOptions = AssetpipeOptions & {
-  onOutput?: (files: File[]) => Promise<void>;
-};
+export async function run(options: AssetpipeOptions) {
+  const { outputDirectory, cacheDirectory, onOutput } = options;
 
-export async function run(options: AssetpipeRunOptions) {
-  if (!options.outputDirectory && !options.onOutput) {
+  if (!outputDirectory && !onOutput) {
     throw new Error("Either outputDirectory or onOutput must be provided");
   }
 
   const { executor } = await createExecutor(options);
 
-  if (options.cacheDirectory) {
+  if (cacheDirectory) {
     await executor.hitQueriesAgainstCache();
     await executor.loadResultsFromCache();
   }
@@ -60,7 +58,7 @@ export async function run(options: AssetpipeRunOptions) {
   await executor.executeAllQueries();
 
   let tempDirectory: string;
-  if (options.cacheDirectory) {
+  if (cacheDirectory) {
     const cacheTempDirectory = await executor.cacheTempDirectory();
     if (!cacheTempDirectory) {
       throw new Error(
@@ -69,50 +67,66 @@ export async function run(options: AssetpipeRunOptions) {
     }
     tempDirectory = cacheTempDirectory;
   } else {
-    tempDirectory = `${tmpdir()}/${randomUUID()}`;
+    tempDirectory = path.join(tmpdir(), randomUUID());
     await mkdir(tempDirectory, { recursive: true });
   }
 
   const files = await executor.computePipelineResults(tempDirectory);
 
-  if (options.cacheDirectory) {
-    const diff = await executor.getCacheDiff();
-    if (diff) {
-      await Promise.all(
-        diff.removedTempFiles.map((file) =>
-          rm(file, { force: true }),
-        ),
-      );
+  let outputChanges: ExecutionMetadata | undefined;
 
-      if (options.outputDirectory) {
-        await Promise.all(
-          diff.removedOutputFiles.map((basename) =>
-            rm(`${options.outputDirectory}/${basename}`, { force: true }),
-          ),
-        );
-      }
+  if (cacheDirectory) {
+    const redundantTempFiles = await executor.getCacheRedundantTempFiles()!;
+    if (redundantTempFiles) {
+      await Promise.all(
+        redundantTempFiles.map((tempContent) => {
+          return rm(tempContent, { force: true });
+        }),
+      );
+    }
+
+    outputChanges = await executor.getExecutionMetadata();
+
+    if (outputChanges && outputDirectory) {
+      await Promise.all(
+        outputChanges.removedFiles.map((file) => {
+          const filePath = path.join(
+            outputDirectory,
+            file.dirname,
+            file.basename,
+          );
+          return rm(filePath, { force: true });
+        }),
+      );
+    }
+  } else {
+    if (outputDirectory) {
+      await rm(outputDirectory, { recursive: true });
     }
   }
 
-  if (options.outputDirectory) {
-    await mkdir(options.outputDirectory, { recursive: true });
+  if (outputDirectory) {
+    await mkdir(outputDirectory, { recursive: true });
   }
 
   if (files) {
-    if (options.outputDirectory) {
+    if (outputDirectory) {
       await Promise.all(
-        files.map((file) =>
-          copyFile(file.content, `${options.outputDirectory}/${file.basename}`),
-        ),
+        files.map((file) => {
+          const filePath = path.join(
+            outputDirectory,
+            file.dirname,
+            file.basename,
+          );
+          return copyFile(file.content, filePath);
+        }),
       );
     }
 
-    if (options.onOutput) {
-      await options.onOutput(files);
-    }
+    onOutput?.(files, outputChanges);
   }
 
-  if (options.cacheDirectory) {
+  if (cacheDirectory) {
     await executor.saveResultsToCache();
   } else {
     await rm(tempDirectory, { recursive: true });

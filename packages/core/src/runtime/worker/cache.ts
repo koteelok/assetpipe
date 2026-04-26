@@ -13,7 +13,7 @@ import {
 import type { File } from "../../types";
 import { collapsePaths, parseImportsDeep, shortHash } from "../../utils";
 import { exists } from "../../utils/exists";
-import type { AssetpipeOptions } from "../options";
+import type { AssetpipeOptions, ExecutionMetadata } from "../options";
 import type { PipelineState } from "./state";
 
 type AssetpipeCacheOptions = SetRequired<AssetpipeOptions, "cacheDirectory">;
@@ -189,7 +189,8 @@ export class PipelineCache {
             return;
           }
 
-          for (const event of events) {
+          for (let i = 0; i < events.length; i++) {
+            const event = events[i];
             const relativePath = path.relative(base, event.path);
             if (!matcher(relativePath) && !matcher(relativePath + path.sep)) {
               continue;
@@ -244,7 +245,8 @@ export class PipelineCache {
 
   has(id: string): boolean {
     if (this.resulsCache[id] !== undefined) return true;
-    if (!this.invalidated && this.resulsCacheBackup[id] !== undefined) return true;
+    if (!this.invalidated && this.resulsCacheBackup[id] !== undefined)
+      return true;
     return false;
   }
 
@@ -257,16 +259,7 @@ export class PipelineCache {
     return undefined;
   }
 
-  getDiff() {
-    const rootId = this.pipelineKey(this.state.root);
-    const prevOutputs = this.resulsCacheBackup[rootId] || [];
-    const curOutputs = this.resulsCache[rootId] || [];
-
-    const curBasenames = new Set(curOutputs.map((f) => f.basename));
-    const removedOutputFiles = prevOutputs
-      .filter((f) => !curBasenames.has(f.basename))
-      .map((f) => f.basename);
-
+  getRedundantTempFiles() {
     const curTempFiles = new Set<string>();
     for (const files of Object.values(this.resulsCache)) {
       for (const file of files) {
@@ -288,7 +281,65 @@ export class PipelineCache {
       }
     }
 
-    return { removedOutputFiles, removedTempFiles: Array.from(removedTempFiles) };
+    return Array.from(removedTempFiles);
+  }
+
+  getExecutionMetadata(): ExecutionMetadata {
+    const rootId = this.pipelineKey(this.state.root);
+    const prevOutput = this.resulsCacheBackup[rootId] || [];
+    const curOutput = this.resulsCache[rootId] || [];
+
+    const addedFiles = [] as File[];
+    const changedFiles = [] as File[];
+    const removedFiles = [] as File[];
+
+    const prevOutputMap = {} as Record<string, File | undefined>;
+    const curOutputMap = {} as Record<string, File | undefined>;
+
+    for (let i = 0; i < prevOutput.length; i++) {
+      const prevFile = prevOutput[i];
+      const prevFilePath = path.join(prevFile.dirname, prevFile.basename);
+      prevOutputMap[prevFilePath] = prevFile;
+    }
+
+    for (let i = 0; i < curOutput.length; i++) {
+      const curFile = curOutput[i];
+      const curFilePath = path.join(curFile.dirname, curFile.basename);
+      curOutputMap[curFilePath] = curFile;
+
+      const prevFile = prevOutputMap[curFilePath];
+
+      if (!prevFile) {
+        addedFiles.push(curFile);
+        continue;
+      }
+
+      if (curFile.content === prevFile.content) {
+        changedFiles.push(curFile);
+      }
+    }
+
+    for (let i = 0; i < prevOutput.length; i++) {
+      const prevFile = prevOutput[i];
+      const prevFilePath = path.join(prevFile.dirname, prevFile.basename);
+
+      if (!curOutputMap[prevFilePath]) {
+        removedFiles.push(prevFile);
+      }
+    }
+
+    const queryTriggers = [];
+    for (let i = 0; i < this.state.queryPipelines.length; i++) {
+      const queryPipeline = this.state.queryPipelines[i];
+      if (!queryPipeline.cacheHit) {
+        const cacheMisses = Array.from(queryPipeline.cacheMisses);
+        for (let j = 0; j < cacheMisses.length; j++) {
+          queryTriggers.push(cacheMisses[j]);
+        }
+      }
+    }
+
+    return { addedFiles, changedFiles, removedFiles, queryTriggers };
   }
 
   write(id: string, files: File[]) {

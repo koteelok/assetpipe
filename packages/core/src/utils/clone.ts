@@ -1,7 +1,8 @@
 import type { Pipeline } from "../pipelines/pipeline";
 import { PipelineMixin } from "../pipelines/pipeline";
+import { File } from "../types";
 
-function cloneDeep(
+function clonePipelineDeep(
   source: any,
   pipelineMap = new Map<Pipeline, Pipeline>(),
 ): any {
@@ -15,7 +16,7 @@ function cloneDeep(
       if (Object.prototype.hasOwnProperty.call(source, key)) {
         // Skip mixin-related keys
         if (key.startsWith("$is")) continue;
-        options[key] = cloneDeep(source[key], pipelineMap);
+        options[key] = clonePipelineDeep(source[key], pipelineMap);
       }
     }
     clone = mixin.mix({}, options);
@@ -30,7 +31,7 @@ function cloneDeep(
   if (Array.isArray(source)) {
     const arr = [];
     for (const value of source) {
-      arr.push(cloneDeep(value, pipelineMap));
+      arr.push(clonePipelineDeep(value, pipelineMap));
     }
     return arr;
   }
@@ -38,12 +39,27 @@ function cloneDeep(
   const obj: any = {};
   for (const key in source) {
     if (Object.prototype.hasOwnProperty.call(source, key)) {
-      obj[key] = cloneDeep(source[key], pipelineMap);
+      obj[key] = clonePipelineDeep(source[key], pipelineMap);
     }
   }
   return obj;
 }
 
 export function clonePipeline(value: Pipeline): Pipeline {
-  return cloneDeep(value);
+  return clonePipelineDeep(value);
+}
+
+export function cloneFiles(files: File[]) {
+  const copyArray = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    copyArray.push({
+      basename: file.basename,
+      dirname: file.dirname,
+      content: file.content,
+    });
+  }
+
+  return copyArray;
 }

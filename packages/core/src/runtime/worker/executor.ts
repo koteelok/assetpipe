@@ -12,6 +12,7 @@ import { exists } from "../../utils/exists";
 import type { AssetpipeOptions } from "../options";
 import { PipelineCache } from "./cache";
 import { PipelineState } from "./state";
+import { cloneFiles } from "../../utils";
 
 declare global {
   var CURRENT_TEMP_DIR: string | undefined;
@@ -64,11 +65,15 @@ export class PipelineExecutor {
     return this.cache?.restoreFromBackup();
   }
 
-  public async getCacheDiff() {
-    return this.cache?.getDiff();
+  public async getCacheRedundantTempFiles() {
+    return this.cache?.getRedundantTempFiles();
   }
 
-  public async executeQuery(pipeline: QueryPipeline | IgnorePipeline) {
+  public async getExecutionMetadata() {
+    return this.cache?.getExecutionMetadata();
+  }
+
+  private async executeQuery(pipeline: QueryPipeline | IgnorePipeline) {
     pipeline.queryResult = [];
 
     for (const query of pipeline.query) {
@@ -118,17 +123,16 @@ export class PipelineExecutor {
   }
 
   public async executeAllQueries() {
-    const pendingQueries: Promise<void>[] = [];
+    await Promise.all([
+      ...this.state.queryPipelines.map((pipeline) =>
+        this.executeQuery(pipeline),
+      ),
+      ...this.state.ignorePipelines.map((pipeline) =>
+        this.executeQuery(pipeline),
+      ),
+    ]);
 
-    for (const pipeline of this.state.queryPipelines) {
-      pendingQueries.push(this.executeQuery(pipeline));
-    }
-
-    for (const pipeline of this.state.ignorePipelines) {
-      pendingQueries.push(this.executeQuery(pipeline));
-    }
-
-    return Promise.all(pendingQueries);
+    this.filterAllQueryResults();
   }
 
   public async submitQueryCacheMiss(
@@ -141,18 +145,25 @@ export class PipelineExecutor {
     const query = pipeline.query[queryIndex];
     const state = pipeline.states[query];
     if (eventType === "create") {
-      pipeline.queryResult.push({
+      const file = {
         basename: path.basename(eventPath),
         dirname: path.relative(
-          path.resolve(state.base),
+          path.resolve(dirname(this.options.entry), state.base),
           path.dirname(eventPath),
         ),
         content: eventPath,
-      });
+      };
+      pipeline.queryResult.push(file);
+      pipeline.filteredQueryResult.push(file);
     } else if (eventType === "delete") {
       for (let i = pipeline.queryResult.length - 1; i >= 0; i--) {
         if (pipeline.queryResult[i].content === eventPath) {
           pipeline.queryResult.splice(i, 1);
+        }
+      }
+      for (let i = pipeline.filteredQueryResult.length - 1; i >= 0; i--) {
+        if (pipeline.filteredQueryResult[i].content === eventPath) {
+          pipeline.filteredQueryResult.splice(i, 1);
         }
       }
     }
@@ -165,8 +176,6 @@ export class PipelineExecutor {
     this.abortController = new AbortController();
 
     if (InteractivePipeline.is(this.state.root)) {
-      this.filterAllQueryResults();
-
       if (this.cache) {
         this.cache.waterfallCacheHits(this.state.root);
       }
@@ -363,12 +372,14 @@ export class PipelineExecutor {
 
       switch (command.type) {
         case "pipe":
-          output = await command.transformer(output);
+          output = await command.transformer(cloneFiles(output));
           break;
 
         case "branch":
           output = await Promise.all(
-            command.transformers.map((transformer) => transformer(output)),
+            command.transformers.map((transformer) =>
+              transformer(cloneFiles(output)),
+            ),
           ).then((results) => results.flat());
           break;
 
