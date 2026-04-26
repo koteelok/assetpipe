@@ -1,8 +1,17 @@
 import { watch } from "@assetpipe/core/runtime";
 import { File } from "@assetpipe/core/types";
-import { readFile, unlink, writeFile } from "fs/promises";
-import { resolve } from "path";
-import { describe, expect, Mock, test, vi } from "vitest";
+import { mkdir, readFile, rm, rmdir, unlink, writeFile } from "fs/promises";
+import { join, resolve } from "path";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  Mock,
+  test,
+  vi,
+} from "vitest";
 
 function waitForCalls(spy: Mock, callCount: number, timeout = 10_000) {
   return new Promise<void>((resolve, reject) => {
@@ -31,15 +40,25 @@ function waitForCalls(spy: Mock, callCount: number, timeout = 10_000) {
 
 describe("watcher mode", () => {
   const entry = resolve(__dirname, "pipeline.ts");
-  const cacheDirectory = resolve(__dirname, "cache");
   const assetsDirectory = resolve(__dirname, "assets");
+
+  beforeEach(async () => {
+    await rm(assetsDirectory, { recursive: true, force: true });
+    await mkdir(assetsDirectory, { recursive: true });
+    for (let i = 1; i < 5; i++) {
+      await writeFile(join(assetsDirectory, `${i}.txt`), `${i}`);
+    }
+  });
+
+  afterAll(async () => {
+    await rm(assetsDirectory, { recursive: true, force: true });
+  });
 
   test("initial spawn produces output", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
 
     const watcher = await watch({
       entry,
-      cacheDirectory,
       useWorker: false,
       onOutput,
     });
@@ -61,7 +80,6 @@ describe("watcher mode", () => {
 
     const watcher = await watch({
       entry,
-      cacheDirectory,
       useWorker: false,
       onOutput,
     });
@@ -94,7 +112,6 @@ describe("watcher mode", () => {
 
     const watcher = await watch({
       entry,
-      cacheDirectory,
       useWorker: false,
       onOutput,
     });

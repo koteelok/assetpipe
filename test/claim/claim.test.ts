@@ -6,16 +6,21 @@ import { expect, test } from "vitest";
 test("claim: query with claim takes ownership so a later query on the same glob sees no files", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
   const outputDirectory = resolve(__dirname, "output");
-  const cacheDirectory = resolve(__dirname, "cache");
 
-  await run({ entry, outputDirectory, cacheDirectory, useWorker: false });
+  await run({ entry, outputDirectory, useWorker: false });
 
   const resultFiles = await readdir(outputDirectory);
   expect(resultFiles).toContain("claimed.txt");
   expect(resultFiles).toContain("selected.txt");
 
-  const claimed = await readFile(resolve(outputDirectory, "claimed.txt"), "utf-8");
-  const selected = await readFile(resolve(outputDirectory, "selected.txt"), "utf-8");
+  const claimed = await readFile(
+    resolve(outputDirectory, "claimed.txt"),
+    "utf-8",
+  );
+  const selected = await readFile(
+    resolve(outputDirectory, "selected.txt"),
+    "utf-8",
+  );
 
   // The claim pipeline should have received all three txt files
   expect(claimed).toContain("claimed:");
