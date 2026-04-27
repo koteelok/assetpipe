@@ -1,7 +1,11 @@
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { PipelineWatcher, run } from "@assetpipe/core/runtime";
+import {
+  type ExecutionMetadata,
+  PipelineWatcher,
+  run,
+} from "@assetpipe/core/runtime";
 import type { File } from "@assetpipe/core/types";
 import sirv from "sirv";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
@@ -64,8 +68,7 @@ export interface AssetpipePluginOptions {
      * The output files from the pipeline execution.
      */
     files: File[];
-    changedFiles: Set<File>;
-    queryTriggers: Set<string>;
+    metadata: ExecutionMetadata;
   }) => void;
 
   /**
@@ -284,12 +287,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
             });
 
             if (options.handleReload) {
-              options.handleReload({
-                server,
-                files,
-                changedFiles: new Set(metadata.changedFiles),
-                queryTriggers: new Set(metadata.queryTriggers),
-              });
+              options.handleReload({ server, files, metadata });
             } else {
               server.hot.send({ type: "full-reload" });
             }
