@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import path from "path";
 
 declare const CURRENT_TEMP_DIR: string | undefined;
 
@@ -15,5 +16,5 @@ export function tmpfile(): string {
     throw new Error("tmpfile called outside of a pipeline");
   }
 
-  return `${CURRENT_TEMP_DIR}/${randomUUID()}`;
+  return path.join(CURRENT_TEMP_DIR, randomUUID());
 }
