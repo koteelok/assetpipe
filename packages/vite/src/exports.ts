@@ -1,2 +1,2 @@
+export type { AssetpipePluginOptions } from "./plugin";
 export { assetpipe } from "./plugin";
-export type { AssetPipePluginOptions } from "./plugin";

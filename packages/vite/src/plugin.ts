@@ -1,97 +1,24 @@
-import * as fsp from "node:fs/promises";
-import { randomUUID } from "node:crypto";
-import { tmpdir } from "node:os";
-import * as path from "node:path";
+import { mkdir, readFile } from "node:fs/promises";
+import path from "node:path";
 
 import { PipelineWatcher, run } from "@assetpipe/core/runtime";
 import type { File } from "@assetpipe/core/types";
 import sirv from "sirv";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
 
-// --- Utility functions ---
+import {
+  cleanUrl,
+  createPromise,
+  isImportRequest,
+  isInternalRequest,
+  isRawRequest,
+  slash,
+  toFilePath,
+} from "./utils";
+import { encodeURIPath } from "./utils/encodeURIPath";
+import { joinUrlSegments } from "./utils/joinUrlSegments";
 
-const postfixRE = /[?#].*$/;
-function cleanUrl(url: string) {
-  return url.replace(postfixRE, "");
-}
-
-const windowsSlashRE = /\\/g;
-function slash(p: string) {
-  return p.replace(windowsSlashRE, "/");
-}
-
-function toFilePath(url: string) {
-  let filePath = cleanUrl(url);
-  if (filePath.indexOf("%") !== -1) {
-    try {
-      filePath = decodeURI(filePath);
-    } catch {
-      /* malformed URI */
-    }
-  }
-  return path.posix.normalize(slash(filePath));
-}
-
-function encodeURIPath(uri: string) {
-  if (uri.startsWith("data:")) return uri;
-  const filePath = cleanUrl(uri);
-  const postfix = filePath !== uri ? uri.slice(filePath.length) : "";
-  return encodeURI(filePath) + postfix;
-}
-
-function joinUrlSegments(a: string, b: string) {
-  if (!a || !b) return a || b || "";
-  if (a.endsWith("/")) a = a.substring(0, a.length - 1);
-  if (b[0] !== "/") b = "/" + b;
-  return a + b;
-}
-
-const rawRE = /(\?|&)raw(?:&|$)/;
-function isRawRequest(url: string) {
-  return rawRE.test(url);
-}
-
-const importRE = /(\?|&)import=?(?:&|$)/;
-function isImportRequest(url: string) {
-  return importRE.test(url);
-}
-
-function isInternalRequest(url: string) {
-  return url.startsWith("/@");
-}
-
-const urlRE = /(\?|&)url(?:&|$)/;
-function isUrlRequest(url: string) {
-  return urlRE.test(url);
-}
-
-function createPromise<T = void>() {
-  const obj = {} as {
-    resolved: boolean;
-    resolve: (value: T | PromiseLike<T>) => void;
-    reject: (reason?: any) => void;
-    promise: Promise<T>;
-    restart: () => void;
-  };
-
-  obj.restart = () => {
-    obj.resolved = false;
-    obj.promise = new Promise((res, rej) => {
-      obj.resolve = (v) => {
-        obj.resolved = true;
-        return res(v);
-      };
-      obj.reject = rej;
-    });
-  };
-
-  obj.restart();
-  return obj;
-}
-
-// --- Plugin types ---
-
-export interface AssetPipePluginOptions {
+export interface AssetpipePluginOptions {
   /**
    * Path to the AssetPipe pipeline entry file.
    *
@@ -99,30 +26,31 @@ export interface AssetPipePluginOptions {
    */
   entry: string;
 
-  cache?: {
-    /**
-     * Enables caching.
-     * @default true
-     */
-    enabled?: boolean;
-
-    /**
-     * Path to the cache directory.
-     * @default ".assetpipe"
-     */
-    directory?: string;
-  };
+  /**
+   * Path to the cache directory.
+   *
+   * Setting this to `undefined` disables caching.
+   *
+   * @default ".assetpipe/cache"
+   */
+  cacheDirectory?: string;
 
   /**
-   * URL prefix for pipeline output files.
-   *
-   * In dev mode, files are served under this prefix.
-   * In build mode, files are emitted as Rollup assets (output location
-   * controlled by Vite's `build.assetsDir`).
-   *
-   * @default ""
+   * @default ".assetpipe/output"
    */
   outputDirectory?: string;
+
+  /**
+   * Prefix for pipeline imports.
+   *
+   * @example
+   * ```ts
+   * import hero from "#/assets/hero.png";
+   * ```
+   *
+   * @default "#/"
+   */
+  prefix?: string;
 
   /**
    * Customize dev server behavior after pipeline re-execution.
@@ -132,11 +60,12 @@ export interface AssetPipePluginOptions {
    */
   handleReload?: (options: {
     server: ViteDevServer;
-
     /**
      * The output files from the pipeline execution.
      */
     files: File[];
+    changedFiles: Set<File>;
+    queryTriggers: Set<string>;
   }) => void;
 
   /**
@@ -151,48 +80,58 @@ export interface AssetPipePluginOptions {
   }) => string | undefined;
 }
 
-// --- Plugin ---
-
-export function assetpipe(_pluginOptions: AssetPipePluginOptions): Plugin {
+export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
   const options = {
     entry: _pluginOptions.entry,
-    outputDirectory: slash(_pluginOptions.outputDirectory || ""),
-    cacheEnabled: _pluginOptions.cache?.enabled !== false,
+    outputDirectory: slash(
+      _pluginOptions.outputDirectory || ".assetpipe/output",
+    ),
     cacheDirectory:
-      _pluginOptions.cache?.enabled !== false
-        ? (_pluginOptions.cache?.directory ?? ".assetpipe")
-        : undefined,
+      "cacheDirectory" in _pluginOptions
+        ? _pluginOptions.cacheDirectory
+        : ".assetpipe/cache",
+    prefix: _pluginOptions.prefix || "#/",
     handleReload: _pluginOptions.handleReload,
     resolveImport: _pluginOptions.resolveImport,
   };
 
   let lastBuildTimestamp = -1;
   const activePipeline = createPromise();
-  const lastPipelineURLs = new Set<string>();
-
-  /** Maps clean URL -> absolute file path in temp output */
-  const pipelineFileMap = new Map<string, string>();
-
-  const tempOutput = path.join(tmpdir(), `assetpipe-${randomUUID()}`);
-
-  function fileUrl(basename: string) {
-    return options.outputDirectory
-      ? path.posix.join("/", options.outputDirectory, slash(basename))
-      : path.posix.join("/", slash(basename));
-  }
+  // Maps pipeline key (e.g. "/test.txt") → assetpipe's file object
+  const pipelineFileMap = new Map<string, File>();
+  // Maps pipeline key (e.g. "/test.txt") → set of module ids (e.g. "\0assetpipe:/test.txt?raw")
+  const pipelineModuleIds = new Map<string, Set<string>>();
 
   function registerOutputFiles(files: File[]) {
-    lastPipelineURLs.clear();
     pipelineFileMap.clear();
 
-    for (const file of files) {
-      const url = fileUrl(file.basename);
-      const absPath = path.join(tempOutput, file.basename);
-      lastPipelineURLs.add(url);
-      pipelineFileMap.set(url, absPath);
-    }
+    files.forEach((file) => {
+      pipelineFileMap.set(
+        path.posix.join("/", slash(file.dirname), file.basename),
+        file,
+      );
+    });
 
     lastBuildTimestamp = Date.now();
+  }
+
+  const resolvedImports = {} as Record<string, string | undefined | null>;
+  function resolveImport(config: ResolvedConfig, id: string) {
+    if (!options.resolveImport) return;
+
+    const oldModule = resolvedImports[id];
+    if (oldModule) {
+      return oldModule;
+    } else if (oldModule === null) {
+      return;
+    }
+
+    const newModule = options.resolveImport({ config, id });
+    if (newModule) {
+      return newModule;
+    } else {
+      return (resolvedImports[id] = null);
+    }
   }
 
   return {
@@ -202,15 +141,14 @@ export function assetpipe(_pluginOptions: AssetPipePluginOptions): Plugin {
 
     async configResolved(config) {
       if (config.command === "build") {
-        await fsp.mkdir(tempOutput, { recursive: true });
+        await mkdir(options.outputDirectory, { recursive: true });
 
         let outputFiles: File[] = [];
 
         await run({
           entry: options.entry,
-          outputDirectory: tempOutput,
+          outputDirectory: options.outputDirectory,
           cacheDirectory: options.cacheDirectory,
-          useWorker: false,
           onOutput: async (files) => {
             outputFiles = files;
           },
@@ -222,50 +160,58 @@ export function assetpipe(_pluginOptions: AssetPipePluginOptions): Plugin {
     },
 
     async resolveId(source) {
-      await activePipeline.promise;
+      const config = this.environment.getTopLevelConfig();
 
-      if (
-        options.resolveImport?.({
-          config: this.environment.getTopLevelConfig(),
-          id: source,
-        })
-      ) {
-        return source;
+      if (!source.startsWith(options.prefix)) {
+        return;
       }
 
-      if (lastPipelineURLs.has(cleanUrl(source))) {
-        return source;
+      await activePipeline.promise;
+
+      const module = resolveImport(config, source);
+      if (module) return source;
+
+      const withoutPrefix = `/${source.slice(options.prefix.length)}`; // "#/test.txt?raw" → "/test.txt?raw"
+      const pipelinePath = cleanUrl(withoutPrefix); // "/test.txt"
+
+      if (pipelineFileMap.has(pipelinePath)) {
+        const moduleId = `\0assetpipe:${withoutPrefix}`;
+        let ids = pipelineModuleIds.get(pipelinePath);
+        if (!ids) {
+          ids = new Set();
+          pipelineModuleIds.set(pipelinePath, ids);
+        }
+        ids.add(moduleId);
+        return moduleId;
       }
     },
 
     async load(id) {
       const config = this.environment.getTopLevelConfig();
-      const cleanId = cleanUrl(id);
 
-      if (options.resolveImport) {
-        const module = options.resolveImport({ config, id });
-        if (module) return module;
-      }
+      const module = resolveImport(config, id);
+      if (module) return module;
 
-      // Skip Rollup internal ids and non-pipeline URLs
-      if (id[0] === "\0" || !lastPipelineURLs.has(cleanId)) {
+      if (!id.startsWith("\0assetpipe:")) {
         return;
       }
 
-      const filePath = pipelineFileMap.get(cleanId)!;
+      id = id.slice("\0assetpipe:".length);
+      const cleanId = cleanUrl(id);
+
+      const file = pipelineFileMap.get(cleanId)!;
 
       // ?raw: return file content as string
       if (isRawRequest(id)) {
-        const content = await fsp.readFile(filePath, "utf-8");
-        return `export default ${JSON.stringify(content)}`;
+        return `export default ${JSON.stringify(await readFile(file.content, "utf-8"))}`;
       }
 
       if (config.command === "build") {
         // Emit as a Rollup asset and use Rollup's native URL resolution
-        const source = await fsp.readFile(filePath);
+        const source = await readFile(file.content);
         const refId = this.emitFile({
           type: "asset",
-          name: path.basename(filePath),
+          name: path.basename(file.content),
           source,
         });
         return {
@@ -283,49 +229,20 @@ export function assetpipe(_pluginOptions: AssetPipePluginOptions): Plugin {
       return `export default ${JSON.stringify(encodeURIPath(url))}`;
     },
 
-    generateBundle(_, bundle) {
-      // Remove empty entry point chunks that only import AssetPipe assets
-      let importedFiles: Set<string> | undefined;
-      for (const file in bundle) {
-        const chunk = bundle[file];
-        if (
-          chunk.type === "chunk" &&
-          chunk.isEntry &&
-          chunk.moduleIds.length === 1 &&
-          this.getModuleInfo(chunk.moduleIds[0])?.meta["assetpipe"]
-        ) {
-          if (!importedFiles) {
-            importedFiles = new Set();
-            for (const f in bundle) {
-              const c = bundle[f];
-              if (c.type === "chunk") {
-                for (const imp of c.imports) importedFiles.add(imp);
-                for (const imp of c.dynamicImports) importedFiles.add(imp);
-              }
-            }
-          }
-          if (!importedFiles.has(file)) {
-            delete bundle[file];
-          }
-        }
-      }
-    },
-
-    async closeBundle() {
-      await fsp.rm(tempOutput, { recursive: true, force: true });
-    },
-
     async configureServer(server) {
-      await fsp.mkdir(tempOutput, { recursive: true });
-
       let firstExecution = true;
 
       const watcher = new PipelineWatcher({
         entry: options.entry,
-        outputDirectory: tempOutput,
+        outputDirectory: options.outputDirectory,
         cacheDirectory: options.cacheDirectory,
-        useWorker: false,
-        onOutput: (files) => {
+        onOutput: (files, metadata) => {
+          if (!metadata) {
+            throw new Error(
+              "Something wrong with execution metadata generation",
+            );
+          }
+
           registerOutputFiles(files);
 
           if (!activePipeline.resolved) {
@@ -333,8 +250,46 @@ export function assetpipe(_pluginOptions: AssetPipePluginOptions): Plugin {
           }
 
           if (!firstExecution) {
+            const environments = Object.values(server.environments);
+
+            const invalidateFile = (file: File) => {
+              const key = path.posix.join(
+                "/",
+                slash(file.dirname),
+                file.basename,
+              );
+              const moduleIds = pipelineModuleIds.get(key);
+              if (!moduleIds) return;
+
+              moduleIds.forEach((moduleId) => {
+                for (let i = 0; i < environments.length; i++) {
+                  const moduleGraph = environments[i].moduleGraph;
+                  const mod = moduleGraph.getModuleById(moduleId);
+                  if (mod) {
+                    moduleGraph.invalidateModule(mod);
+                  }
+                }
+              });
+            };
+
+            metadata.changedFiles.forEach(invalidateFile);
+            metadata.removedFiles.forEach((file) => {
+              invalidateFile(file);
+              const key = path.posix.join(
+                "/",
+                slash(file.dirname),
+                file.basename,
+              );
+              pipelineModuleIds.delete(key);
+            });
+
             if (options.handleReload) {
-              options.handleReload({ server, files });
+              options.handleReload({
+                server,
+                files,
+                changedFiles: new Set(metadata.changedFiles),
+                queryTriggers: new Set(metadata.queryTriggers),
+              });
             } else {
               server.hot.send({ type: "full-reload" });
             }
@@ -346,7 +301,7 @@ export function assetpipe(_pluginOptions: AssetPipePluginOptions): Plugin {
 
       await watcher.spawn();
 
-      const serve = sirv(tempOutput, {
+      const serve = sirv(options.outputDirectory, {
         dev: true,
         etag: true,
         extensions: [],
@@ -364,24 +319,16 @@ export function assetpipe(_pluginOptions: AssetPipePluginOptions): Plugin {
         },
       });
 
-      const urlPrefix = options.outputDirectory
-        ? `/${options.outputDirectory}`
-        : "";
+      const urlPrefix = `/${options.outputDirectory}`;
 
       server.middlewares.use(function assetpipeMiddleware(req, res, next) {
-        if (
-          isImportRequest(req.url!) ||
-          isInternalRequest(req.url!) ||
-          isUrlRequest(req.url!)
-        ) {
+        if (isImportRequest(req.url!) || isInternalRequest(req.url!)) {
           return next();
         }
 
-        const filePath = toFilePath(req.url!);
-        if (lastPipelineURLs.has(filePath)) {
-          // Strip the outputDirectory prefix so sirv can find the file
-          if (urlPrefix && req.url!.startsWith(urlPrefix)) {
-            req.url = req.url!.slice(urlPrefix.length) || "/";
+        if (req.url && pipelineFileMap.has(toFilePath(req.url))) {
+          if (urlPrefix && req.url.startsWith(urlPrefix)) {
+            req.url = req.url.slice(urlPrefix.length) || "/";
           }
           return serve(req, res, next);
         }
@@ -392,7 +339,6 @@ export function assetpipe(_pluginOptions: AssetPipePluginOptions): Plugin {
       const originalClose = server.close;
       server.close = async () => {
         await watcher.despawn();
-        await fsp.rm(tempOutput, { recursive: true, force: true });
         return originalClose.call(server);
       };
     },
