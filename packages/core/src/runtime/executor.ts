@@ -83,7 +83,7 @@ export async function run(options: AssetpipeOptions) {
     if (redundantTempFiles) {
       await Promise.all(
         redundantTempFiles.map((tempContent) => {
-          return rm(tempContent, { force: true });
+          return rm(tempContent, { recursive: true, force: true });
         }),
       );
     }
