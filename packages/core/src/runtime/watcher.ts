@@ -1,13 +1,13 @@
 import type { AsyncSubscription } from "@parcel/watcher";
-import { subscribe } from "@parcel/watcher";
+import ParcelWatcher, { subscribe } from "@parcel/watcher";
 import { randomUUID } from "crypto";
 import { copyFile, mkdir, rm } from "fs/promises";
 import { tmpdir } from "os";
-import path, { dirname } from "path";
+import path from "path";
 import picomatch from "picomatch";
 
 import { collapsePaths, debounceAsync, parseImportsDeep } from "../utils";
-import { exists } from "../utils/exists";
+import { exists, existsFile } from "../utils/exists";
 import { createExecutor, type PipelineExecutorAPI } from "./executor";
 import type { AssetpipeOptions, ExecutionMetadata } from "./options";
 import type { SerializedExecutorState } from "./worker";
@@ -121,6 +121,23 @@ export class PipelineWatcher {
     const subscriptionOptions = { ignore: this.state.ignorePatterns };
     const pendingSubmissions = new Set<Promise<void>>();
 
+    const submitEvent = (
+      pipelineIndex: number,
+      queryIndex: number,
+      event: ParcelWatcher.Event,
+    ) => {
+      const promise = this.executor
+        .submitQueryCacheMiss(pipelineIndex, queryIndex, event.type, event.path)
+        .then(() => {
+          pendingSubmissions.delete(promise);
+
+          if (pendingSubmissions.size === 0) {
+            this.onQueryTriggered.call();
+          }
+        });
+      pendingSubmissions.add(promise);
+    };
+
     for (
       let pipelineIndex = 0;
       pipelineIndex < this.state.queryPipelines.length;
@@ -131,7 +148,46 @@ export class PipelineWatcher {
       for (let queryIndex = 0; queryIndex < info.query.length; queryIndex++) {
         const query = info.query[queryIndex];
         const state = info.states[info.query[queryIndex]];
-        const basePath = path.resolve(dirname(this.options.entry), state.base);
+
+        if (state.glob === "") {
+          const fileDirname = path.resolve(
+            path.dirname(this.options.entry),
+            path.dirname(state.base),
+          );
+          const fileBasename = path.basename(state.base);
+
+          if (!(await existsFile(fileDirname))) {
+            console.warn(
+              `Failed query (${path.join(info.context, query)}). File does not exist: ${path.join(fileDirname, fileBasename)}`,
+            );
+          }
+
+          subscriptions.push(
+            subscribe(
+              fileDirname,
+              (err, events) => {
+                for (let i = 0; i < events.length; i++) {
+                  const event = events[i];
+                  const relativePath = path.relative(fileDirname, event.path);
+
+                  if (relativePath !== fileBasename) {
+                    continue;
+                  }
+
+                  submitEvent(pipelineIndex, queryIndex, event);
+                }
+              },
+              subscriptionOptions,
+            ),
+          );
+
+          continue;
+        }
+
+        const basePath = path.resolve(
+          path.dirname(this.options.entry),
+          state.base,
+        );
         const matcher = picomatch(state.glob, {
           windows: process.platform === "win32",
         });
@@ -157,21 +213,7 @@ export class PipelineWatcher {
                   continue;
                 }
 
-                const promise = this.executor
-                  .submitQueryCacheMiss(
-                    pipelineIndex,
-                    queryIndex,
-                    event.type,
-                    event.path,
-                  )
-                  .then(() => {
-                    pendingSubmissions.delete(promise);
-
-                    if (pendingSubmissions.size === 0) {
-                      this.onQueryTriggered.call();
-                    }
-                  });
-                pendingSubmissions.add(promise);
+                submitEvent(pipelineIndex, queryIndex, event);
               }
             },
             subscriptionOptions,
@@ -224,7 +266,9 @@ export class PipelineWatcher {
             await this.executor.getCacheRedundantTempFiles();
           if (redundantTempFiles) {
             await Promise.all(
-              redundantTempFiles.map((file) => rm(file, { force: true })),
+              redundantTempFiles.map((file) =>
+                rm(file, { recursive: true, force: true }),
+              ),
             );
           }
 

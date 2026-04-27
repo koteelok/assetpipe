@@ -1,7 +1,6 @@
-import type { Event } from "@parcel/watcher";
-import { getEventsSince, writeSnapshot } from "@parcel/watcher";
+import ParcelWatcher, { getEventsSince, writeSnapshot } from "@parcel/watcher";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import path, { dirname } from "path";
+import path from "path";
 import type { SetRequired } from "type-fest";
 
 import {
@@ -12,7 +11,7 @@ import {
 } from "../../pipelines";
 import type { File } from "../../types";
 import { collapsePaths, parseImportsDeep, shortHash } from "../../utils";
-import { exists } from "../../utils/exists";
+import { exists, existsFile } from "../../utils/exists";
 import type { AssetpipeOptions, ExecutionMetadata } from "../options";
 import type { PipelineState } from "./state";
 
@@ -124,7 +123,10 @@ export class PipelineCache {
       this.state.queryPipelines.flatMap((pipeline) =>
         Object.keys(pipeline.states).map(async (query) => {
           const state = pipeline.states[query];
-          const base = path.resolve(dirname(this.options.entry), state.base);
+          const base = path.resolve(
+            path.dirname(this.options.entry),
+            state.base,
+          );
           const snapshotPath = path.join(
             this.querySnapshotsPath,
             shortHash(query),
@@ -150,54 +152,107 @@ export class PipelineCache {
   }
 
   async hitQueries() {
-    const eventsPromises: Record<string, Promise<Event[] | undefined>> = {};
+    const eventsPromises: Record<
+      string,
+      Promise<ParcelWatcher.Event[] | undefined>
+    > = {};
 
     await Promise.all(
       this.state.queryPipelines.flatMap((pipeline) =>
         Object.keys(pipeline.states).map(async (query) => {
           const state = pipeline.states[query];
-          const matcher = pipeline.matchers[query];
-          const base = path.resolve(dirname(this.options.entry), state.base);
           const snapshotPath = path.join(
             this.querySnapshotsPath,
             shortHash(query),
           );
 
-          if (!(await exists(base))) {
-            throw new Error(
-              `Failed query (${path.join(pipeline.context, query)}). Directory does not exist: ${base}`,
+          if (state.glob === "") {
+            const fileDirname = path.resolve(
+              path.dirname(this.options.entry),
+              path.dirname(state.base),
             );
-          }
+            const fileBasename = path.basename(state.base);
 
-          eventsPromises[state.base] ??= (async () => {
-            if (await exists(snapshotPath)) {
-              return getEventsSince(base, snapshotPath, {
-                ignore: this.state.ignorePatterns,
-              });
-            }
-          })();
-
-          const events = await eventsPromises[state.base];
-
-          if (!events) {
-            pipeline.cacheHit = false;
-            return;
-          }
-
-          if (events.length === 0) {
-            pipeline.cacheHit = true;
-            return;
-          }
-
-          for (let i = 0; i < events.length; i++) {
-            const event = events[i];
-            const relativePath = path.relative(base, event.path);
-            if (!matcher(relativePath) && !matcher(relativePath + path.sep)) {
-              continue;
+            if (!(await existsFile(fileDirname))) {
+              console.warn(
+                `Failed query (${path.join(pipeline.context, query)}). File does not exist: ${path.join(fileDirname, fileBasename)}`,
+              );
             }
 
-            pipeline.cacheHit = false;
-            pipeline.cacheMisses.add(event.path);
+            eventsPromises[state.base] ??= (async () => {
+              if (await exists(snapshotPath)) {
+                return getEventsSince(fileDirname, snapshotPath, {
+                  ignore: this.state.ignorePatterns,
+                });
+              }
+            })();
+
+            const events = await eventsPromises[state.base];
+
+            if (!events) {
+              pipeline.cacheHit = false;
+              return;
+            }
+
+            if (events.length === 0) {
+              pipeline.cacheHit = true;
+              return;
+            }
+
+            for (let i = 0; i < events.length; i++) {
+              const event = events[i];
+              const relativePath = path.relative(fileDirname, event.path);
+
+              if (relativePath !== fileBasename) {
+                continue;
+              }
+
+              pipeline.cacheHit = false;
+              pipeline.cacheMisses.add(event.path);
+            }
+          } else {
+            const matcher = pipeline.matchers[query];
+            const basePath = path.resolve(
+              path.dirname(this.options.entry),
+              state.base,
+            );
+
+            if (!(await exists(basePath))) {
+              throw new Error(
+                `Failed query (${path.join(pipeline.context, query)}). Directory does not exist: ${basePath}`,
+              );
+            }
+
+            eventsPromises[state.base] ??= (async () => {
+              if (await exists(snapshotPath)) {
+                return getEventsSince(basePath, snapshotPath, {
+                  ignore: this.state.ignorePatterns,
+                });
+              }
+            })();
+
+            const events = await eventsPromises[state.base];
+
+            if (!events) {
+              pipeline.cacheHit = false;
+              return;
+            }
+
+            if (events.length === 0) {
+              pipeline.cacheHit = true;
+              return;
+            }
+
+            for (let i = 0; i < events.length; i++) {
+              const event = events[i];
+              const relativePath = path.relative(basePath, event.path);
+              if (!matcher(relativePath) && !matcher(relativePath + path.sep)) {
+                continue;
+              }
+
+              pipeline.cacheHit = false;
+              pipeline.cacheMisses.add(event.path);
+            }
           }
         }),
       ),

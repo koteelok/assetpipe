@@ -52,9 +52,11 @@ export class PipelineState {
         path.join(parent.context, query).replace(/\\/g, "/"),
       );
       parent.states[query] = state;
-      parent.matchers[query] = picomatch(state.glob, {
-        windows: process.platform === "win32",
-      });
+      if (state.glob !== "") {
+        parent.matchers[query] = picomatch(state.glob, {
+          windows: process.platform === "win32",
+        });
+      }
     }
   }
 
