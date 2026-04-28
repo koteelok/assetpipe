@@ -36,13 +36,20 @@ export async function createExecutor(_options: AssetpipeOptions) {
     api = comlink.wrap<PipelineExecutor>(
       nodeEndpoint(new Worker(`${__dirname}/worker/index.js`)),
     );
+
+    const state = await api.init({
+      ...options,
+      onOutput: undefined,
+    });
+
+    return { state, executor: api as PipelineExecutorAPI };
   } else {
     api = new PipelineExecutor();
+
+    const state = await api.init(options);
+
+    return { state, executor: api as PipelineExecutorAPI };
   }
-
-  const state = await api.init(options);
-
-  return { state, executor: api as PipelineExecutorAPI };
 }
 
 export async function run(options: AssetpipeOptions) {
