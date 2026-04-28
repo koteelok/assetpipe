@@ -10,12 +10,21 @@ import {
   QueryPipeline,
 } from "../../pipelines";
 import type { File } from "../../types";
-import { collapsePaths, parseImportsDeep, shortHash } from "../../utils";
-import { exists, existsFile } from "../../utils/exists";
-import type { AssetpipeOptions, ExecutionMetadata } from "../options";
+import {
+  collapsePaths,
+  exists,
+  existsFile,
+  parseImportsDeep,
+  shortHash,
+} from "../../utils";
+import type { ExecutionMetadata } from "../options";
 import type { PipelineState } from "./state";
+import { AssetpipeOptionsWithDefaults } from "../options";
 
-type AssetpipeCacheOptions = SetRequired<AssetpipeOptions, "cacheDirectory">;
+type AssetpipeCacheOptions = SetRequired<
+  AssetpipeOptionsWithDefaults,
+  "cacheDirectory"
+>;
 
 export class PipelineCache {
   private resulsCacheBackup: Record<string, File[]> = {};
@@ -123,10 +132,7 @@ export class PipelineCache {
       this.state.queryPipelines.flatMap((pipeline) =>
         Object.keys(pipeline.states).map(async (query) => {
           const state = pipeline.states[query];
-          const base = path.resolve(
-            path.dirname(this.options.entry),
-            state.base,
-          );
+          const base = path.resolve(this.options.queryBase, state.base);
           const snapshotPath = path.join(
             this.querySnapshotsPath,
             shortHash(query),
@@ -168,7 +174,7 @@ export class PipelineCache {
 
           if (state.glob === "") {
             const fileDirname = path.resolve(
-              path.dirname(this.options.entry),
+              this.options.queryBase ? this.options.queryBase : "",
               path.dirname(state.base),
             );
             const fileBasename = path.basename(state.base);
@@ -213,7 +219,7 @@ export class PipelineCache {
           } else {
             const matcher = pipeline.matchers[query];
             const basePath = path.resolve(
-              path.dirname(this.options.entry),
+              this.options.queryBase ? this.options.queryBase : "",
               state.base,
             );
 

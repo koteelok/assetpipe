@@ -6,7 +6,11 @@ import { tmpdir } from "os";
 import type { Simplify } from "type-fest";
 import { Worker } from "worker_threads";
 
-import type { AssetpipeOptions, ExecutionMetadata } from "./options";
+import {
+  applyDefaults,
+  type AssetpipeOptions,
+  type ExecutionMetadata,
+} from "./options";
 import { PipelineExecutor } from "./worker";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -21,25 +25,22 @@ export type PipelineExecutorAPI = Simplify<
   Omit<OnlyAsyncMethods<PipelineExecutor>, "init">
 >;
 
-export async function createExecutor(options: AssetpipeOptions) {
+export async function createExecutor(_options: AssetpipeOptions) {
+  const options = applyDefaults(_options);
+
   let api;
 
-  if (options.useWorker === false) {
-    api = new PipelineExecutor();
-  } else {
+  if (options.useWorker) {
     let __dirname =
       globalThis.__dirname ?? path.dirname(fileURLToPath(import.meta.url));
     api = comlink.wrap<PipelineExecutor>(
       nodeEndpoint(new Worker(`${__dirname}/worker/index.js`)),
     );
+  } else {
+    api = new PipelineExecutor();
   }
 
-  const state = await api.init({
-    entry: options.entry,
-    cacheDirectory: options.cacheDirectory,
-    outputDirectory: options.outputDirectory,
-    useWorker: options.useWorker,
-  });
+  const state = await api.init(options);
 
   return { state, executor: api as PipelineExecutorAPI };
 }

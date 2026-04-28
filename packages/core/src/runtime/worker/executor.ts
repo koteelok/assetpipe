@@ -1,5 +1,5 @@
 import { readdir } from "fs/promises";
-import path, { dirname } from "path";
+import path from "path";
 
 import type { IgnorePipeline, Pipeline } from "../../pipelines";
 import {
@@ -8,11 +8,10 @@ import {
   QueryPipeline,
 } from "../../pipelines";
 import type { File } from "../../types";
-import { exists } from "../../utils/exists";
-import type { AssetpipeOptions } from "../options";
 import { PipelineCache } from "./cache";
 import { PipelineState } from "./state";
-import { cloneFiles } from "../../utils";
+import { cloneFiles, exists } from "../../utils";
+import { AssetpipeOptionsWithDefaults } from "../options";
 
 declare global {
   var CURRENT_TEMP_DIR: string | undefined;
@@ -22,18 +21,18 @@ export class PipelineExecutor {
   public state!: PipelineState;
   public cache?: PipelineCache;
   private abortController?: AbortController;
-  private options!: AssetpipeOptions;
+  private options!: AssetpipeOptionsWithDefaults;
 
-  public async init(options: AssetpipeOptions) {
+  public async init(options: AssetpipeOptionsWithDefaults) {
     this.options = options;
 
     this.state = await PipelineState.create(this.options);
 
     if (this.options.cacheDirectory) {
+      // typecript is dumb lol
       this.cache = new PipelineCache(this.state, {
-        entry: this.options.entry,
-        outputDirectory: this.options.outputDirectory,
         cacheDirectory: this.options.cacheDirectory,
+        ...this.options,
       });
       await this.cache.init();
     }
@@ -78,7 +77,7 @@ export class PipelineExecutor {
 
     for (const query of pipeline.query) {
       const state = pipeline.states[query];
-      const basePath = path.resolve(dirname(this.options.entry), state.base);
+      const basePath = path.resolve(this.options.queryBase, state.base);
 
       if (state.glob === "") {
         if (!(await exists(basePath))) {
@@ -148,7 +147,7 @@ export class PipelineExecutor {
       const file = {
         basename: path.basename(eventPath),
         dirname: path.relative(
-          path.resolve(dirname(this.options.entry), state.base),
+          path.resolve(this.options.queryBase, state.base),
           path.dirname(eventPath),
         ),
         content: eventPath,

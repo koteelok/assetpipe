@@ -6,14 +6,28 @@ import { tmpdir } from "os";
 import path from "path";
 import picomatch from "picomatch";
 
-import { collapsePaths, debounceAsync, parseImportsDeep } from "../utils";
-import { exists, existsFile } from "../utils/exists";
+import {
+  collapsePaths,
+  exists,
+  existsFile,
+  debounceAsync,
+  parseImportsDeep,
+} from "../utils";
 import { createExecutor, type PipelineExecutorAPI } from "./executor";
-import type { AssetpipeOptions, ExecutionMetadata } from "./options";
+import {
+  applyDefaults,
+  type AssetpipeOptions,
+  type AssetpipeOptionsWithDefaults,
+  type ExecutionMetadata,
+} from "./options";
 import type { SerializedExecutorState } from "./worker";
 
 export class PipelineWatcher {
-  constructor(private options: AssetpipeOptions) {}
+  private options: AssetpipeOptionsWithDefaults;
+
+  constructor(_options: AssetpipeOptions) {
+    this.options = applyDefaults(_options);
+  }
 
   private active = false;
 
@@ -151,7 +165,7 @@ export class PipelineWatcher {
 
         if (state.glob === "") {
           const fileDirname = path.resolve(
-            path.dirname(this.options.entry),
+            this.options.queryBase,
             path.dirname(state.base),
           );
           const fileBasename = path.basename(state.base);
@@ -184,10 +198,7 @@ export class PipelineWatcher {
           continue;
         }
 
-        const basePath = path.resolve(
-          path.dirname(this.options.entry),
-          state.base,
-        );
+        const basePath = path.resolve(this.options.queryBase, state.base);
         const matcher = picomatch(state.glob, {
           windows: process.platform === "win32",
         });
