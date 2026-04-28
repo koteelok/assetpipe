@@ -7,7 +7,7 @@ test("query with groupBy: groups files by dirname and produces one bundle per gr
   const entry = resolve(__dirname, "pipeline.ts");
   const outputDirectory = resolve(__dirname, "output");
 
-  await run({ entry, outputDirectory, useWorker: false });
+  await run({ entry, outputDirectory, queryBase: __dirname, useWorker: false });
 
   const resultFiles = await readdir(outputDirectory);
   expect(resultFiles).toContain("txt.bundle");

@@ -7,7 +7,7 @@ test("context(): resolves inner pipeline queries relative to the given root", as
   const entry = resolve(__dirname, "pipeline.ts");
   const outputDirectory = resolve(__dirname, "output");
 
-  await run({ entry, outputDirectory, useWorker: false });
+  await run({ entry, outputDirectory, queryBase: __dirname, useWorker: false });
 
   const resultFiles = await readdir(outputDirectory);
   expect(resultFiles).toContain("ctx_output.txt");

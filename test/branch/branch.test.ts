@@ -7,7 +7,7 @@ test(".branch(): fans input into multiple transformers and merges all results", 
   const entry = resolve(__dirname, "pipeline.ts");
   const outputDirectory = resolve(__dirname, "output");
 
-  await run({ entry, outputDirectory, useWorker: false });
+  await run({ entry, outputDirectory, queryBase: __dirname, useWorker: false });
 
   const resultFiles = await readdir(outputDirectory);
 

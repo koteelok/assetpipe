@@ -48,6 +48,7 @@ describe("caching", () => {
       entry,
       outputDirectory: outputDir,
       cacheDirectory: cacheDir,
+      queryBase: __dirname,
       useWorker: false,
     });
     expect(await getCallCounts()).toEqual({ "a.txt": 1, "b.txt": 1 });
@@ -65,6 +66,7 @@ describe("caching", () => {
       entry,
       outputDirectory: outputDir,
       cacheDirectory: cacheDir,
+      queryBase: __dirname,
       useWorker: false,
     });
 
@@ -90,6 +92,7 @@ describe("caching", () => {
       entry,
       outputDirectory: outputDir,
       cacheDirectory: cacheDir,
+      queryBase: __dirname,
       useWorker: false,
     });
     expect(await getCallCounts()).toEqual({ "a.txt": 1, "b.txt": 1 });
@@ -104,6 +107,7 @@ describe("caching", () => {
       entry,
       outputDirectory: outputDir,
       cacheDirectory: cacheDir,
+      queryBase: __dirname,
       useWorker: false,
     });
 
@@ -126,6 +130,7 @@ describe("caching", () => {
       entry,
       outputDirectory: outputDir,
       cacheDirectory: cacheDir,
+      queryBase: __dirname,
       useWorker: false,
     });
     expect(await getCallCounts()).toEqual({ "a.txt": 1, "b.txt": 1 });
@@ -141,6 +146,7 @@ describe("caching", () => {
       entry,
       outputDirectory: outputDir,
       cacheDirectory: cacheDir,
+      queryBase: __dirname,
       useWorker: false,
     });
 

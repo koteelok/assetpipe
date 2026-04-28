@@ -7,7 +7,7 @@ test("query: processes each file individually", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
   const outputDirectory = resolve(__dirname, "output");
 
-  await run({ entry, outputDirectory, useWorker: false });
+  await run({ entry, outputDirectory, queryBase: __dirname, useWorker: false });
 
   const resultFiles = await readdir(outputDirectory);
   expect(resultFiles.sort()).toEqual(["a.txt.out", "b.txt.out", "c.txt.out"]);

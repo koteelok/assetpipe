@@ -2,16 +2,7 @@ import { watch } from "@assetpipe/core/runtime";
 import { File } from "@assetpipe/core/types";
 import { mkdir, readFile, rm, rmdir, unlink, writeFile } from "fs/promises";
 import { join, resolve } from "path";
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  Mock,
-  test,
-  vi,
-} from "vitest";
+import { afterAll, beforeEach, describe, expect, Mock, test, vi } from "vitest";
 
 function waitForCalls(spy: Mock, callCount: number, timeout = 10_000) {
   return new Promise<void>((resolve, reject) => {
@@ -59,6 +50,7 @@ describe("watcher mode", () => {
 
     const watcher = await watch({
       entry,
+      queryBase: __dirname,
       useWorker: false,
       onOutput,
     });
@@ -80,6 +72,7 @@ describe("watcher mode", () => {
 
     const watcher = await watch({
       entry,
+      queryBase: __dirname,
       useWorker: false,
       onOutput,
     });
@@ -112,6 +105,7 @@ describe("watcher mode", () => {
 
     const watcher = await watch({
       entry,
+      queryBase: __dirname,
       useWorker: false,
       onOutput,
     });
