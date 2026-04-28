@@ -7,6 +7,9 @@
       "cache": true
     }
   },
+  "tui": {
+    "autoExit": true
+  },
   "plugins": [
     {
       "plugin": "@nx/eslint/plugin",
