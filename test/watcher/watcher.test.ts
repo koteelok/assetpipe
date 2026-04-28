@@ -4,8 +4,12 @@ import { mkdir, readFile, rm, rmdir, unlink, writeFile } from "fs/promises";
 import { join, resolve } from "path";
 import { afterAll, beforeEach, describe, expect, Mock, test, vi } from "vitest";
 
-function waitForCalls(spy: Mock, callCount: number, timeout = 10_000) {
-  return new Promise<void>((resolve, reject) => {
+function waitForCalls<T extends (...args: any[]) => any>(
+  spy: Mock<T>,
+  callCount: number,
+  timeout = 10_000,
+) {
+  return new Promise<Parameters<T>>((resolve, reject) => {
     const timer = setTimeout(
       () =>
         reject(
@@ -19,7 +23,7 @@ function waitForCalls(spy: Mock, callCount: number, timeout = 10_000) {
     const check = () => {
       if (spy.mock.calls.length >= callCount) {
         clearTimeout(timer);
-        resolve();
+        resolve(spy.mock.calls[callCount - 1] as Parameters<T>);
       } else {
         setTimeout(check, 50);
       }
@@ -56,10 +60,8 @@ describe("watcher mode", () => {
     });
 
     await watcher.spawn();
-    await waitForCalls(onOutput, 1);
 
-    const [files] = onOutput.mock.calls[0];
-
+    const [files] = await waitForCalls(onOutput, 1);
     const content = await readFile(files[0].content, "utf-8");
     expect(content.length).toBeGreaterThan(0);
     expect(content).toConsistOf("1 | 2 | 3 | 4");
@@ -81,18 +83,16 @@ describe("watcher mode", () => {
     await waitForCalls(onOutput, 1);
 
     await writeFile(resolve(assetsDirectory, "2.txt"), "22");
-    await waitForCalls(onOutput, 2);
 
-    let files = onOutput.mock.calls[1][0];
+    let [files] = await waitForCalls(onOutput, 2);
 
     const content = await readFile(files[0].content, "utf-8");
     expect(content.length).toBeGreaterThan(0);
     expect(content).toConsistOf("1 | 22 | 3 | 4");
 
     await writeFile(resolve(assetsDirectory, "2.txt"), "2");
-    await waitForCalls(onOutput, 3);
 
-    files = onOutput.mock.calls[2][0];
+    [files] = await waitForCalls(onOutput, 3);
     const updatedContent = await readFile(files[0].content, "utf-8");
     expect(updatedContent.length).toBeGreaterThan(0);
     expect(updatedContent).toConsistOf("1 | 2 | 3 | 4");
@@ -114,17 +114,15 @@ describe("watcher mode", () => {
     await waitForCalls(onOutput, 1);
 
     await writeFile(resolve(assetsDirectory, "5.txt"), "5");
-    await waitForCalls(onOutput, 2);
 
-    let files = onOutput.mock.calls[1][0];
+    let [files] = await waitForCalls(onOutput, 2);
     let content = await readFile(files[0].content, "utf-8");
     expect(content.length).toBeGreaterThan(0);
     expect(content).toConsistOf("1 | 2 | 3 | 4 | 5");
 
     await unlink(resolve(assetsDirectory, "5.txt"));
-    await waitForCalls(onOutput, 3);
 
-    files = onOutput.mock.calls[2][0];
+    [files] = await waitForCalls(onOutput, 3);
     content = await readFile(files[0].content, "utf-8");
     expect(content.length).toBeGreaterThan(0);
     expect(content).toConsistOf("1 | 2 | 3 | 4");
