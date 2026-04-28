@@ -1,5 +1,5 @@
 import ParcelWatcher, { getEventsSince, writeSnapshot } from "@parcel/watcher";
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import path from "path";
 import type { SetRequired } from "type-fest";
 
@@ -11,6 +11,7 @@ import {
 } from "../../pipelines";
 import type { File } from "../../types";
 import {
+  cloneFiles,
   collapsePaths,
   exists,
   existsFile,
@@ -26,9 +27,33 @@ type AssetpipeCacheOptions = SetRequired<
   "cacheDirectory"
 >;
 
-export class PipelineCache {
-  private resulsCacheBackup: Record<string, File[]> = {};
-  private resulsCache: Record<string, File[]> = {};
+class ExecutionCache {
+  results: Record<string, File[]> = {};
+  output: File[] = [];
+
+  extract(reference: any) {
+    this.results = reference.results;
+    this.output = reference.output;
+  }
+
+  copy(reference: ExecutionCache) {
+    this.results = {};
+    for (const id in reference.results) {
+      this.results[id] = cloneFiles(reference.results[id]);
+    }
+    this.output = reference.output.slice();
+  }
+
+  clear() {
+    this.results = {};
+    this.output = [];
+  }
+}
+
+export class PipelineCacheManager {
+  private CACHE_VERSION = 1;
+  private resulsCacheBackup = new ExecutionCache();
+  private resulsCache = new ExecutionCache();
   private invalidated = false;
 
   constructor(
@@ -44,6 +69,18 @@ export class PipelineCache {
   public codeDirectories!: string[];
 
   async init() {
+    const versionFile = path.join(this.options.cacheDirectory, "version");
+
+    const storedVersion = await existsFile(versionFile).then(
+      (exists) => (exists ? readFile(versionFile, "utf-8").then(parseInt) : -1),
+      () => -1,
+    );
+    if (storedVersion !== this.CACHE_VERSION) {
+      await rm(this.options.cacheDirectory, { recursive: true, force: true });
+      await mkdir(this.options.cacheDirectory, { recursive: true });
+      await writeFile(versionFile, this.CACHE_VERSION.toString());
+    }
+
     this.codeFiels = await parseImportsDeep(this.options.entry);
     this.codeDirectories = collapsePaths(this.codeFiels);
 
@@ -64,10 +101,10 @@ export class PipelineCache {
 
   async loadResults() {
     try {
-      this.resulsCacheBackup = JSON.parse(
-        await readFile(this.resultsPath, "utf-8"),
+      this.resulsCacheBackup.extract(
+        JSON.parse(await readFile(this.resultsPath, "utf-8")),
       );
-      this.resulsCache = {};
+      this.resulsCache.clear();
 
       let codeChanged = false;
       for (const directory of this.codeDirectories) {
@@ -103,7 +140,7 @@ export class PipelineCache {
   }
 
   restoreFromBackup() {
-    this.resulsCache = structuredClone(this.resulsCacheBackup);
+    this.resulsCache.copy(this.resulsCacheBackup);
     this.invalidated = false;
   }
 
@@ -115,7 +152,7 @@ export class PipelineCache {
       JSON.stringify(this.resulsCache),
       "utf-8",
     );
-    this.resulsCacheBackup = structuredClone(this.resulsCache);
+    this.resulsCacheBackup.copy(this.resulsCache);
 
     for (const directory of this.codeDirectories) {
       const snapshotPath = path.join(
@@ -153,8 +190,8 @@ export class PipelineCache {
   }
 
   clear() {
-    this.resulsCacheBackup = {};
-    this.resulsCache = {};
+    this.resulsCacheBackup.clear();
+    this.resulsCache.clear();
   }
 
   async hitQueries() {
@@ -304,25 +341,9 @@ export class PipelineCache {
     }
   }
 
-  has(id: string): boolean {
-    if (this.resulsCache[id] !== undefined) return true;
-    if (!this.invalidated && this.resulsCacheBackup[id] !== undefined)
-      return true;
-    return false;
-  }
-
-  read(id: string): File[] | undefined {
-    if (this.resulsCache[id]) return this.resulsCache[id];
-    if (!this.invalidated && this.resulsCacheBackup[id]) {
-      this.resulsCache[id] = this.resulsCacheBackup[id];
-      return this.resulsCache[id];
-    }
-    return undefined;
-  }
-
   getRedundantTempFiles() {
     const curTempFiles = new Set<string>();
-    for (const files of Object.values(this.resulsCache)) {
+    for (const files of Object.values(this.resulsCache.results)) {
       for (const file of files) {
         if (file.content.startsWith(this.tempFilesPath)) {
           curTempFiles.add(file.content);
@@ -331,7 +352,7 @@ export class PipelineCache {
     }
 
     const removedTempFiles = new Set<string>();
-    for (const files of Object.values(this.resulsCacheBackup)) {
+    for (const files of Object.values(this.resulsCacheBackup.results)) {
       for (const file of files) {
         if (
           file.content.startsWith(this.tempFilesPath) &&
@@ -346,9 +367,8 @@ export class PipelineCache {
   }
 
   getExecutionMetadata(): ExecutionMetadata {
-    const rootId = this.pipelineKey(this.state.root);
-    const prevOutput = this.resulsCacheBackup[rootId] || [];
-    const curOutput = this.resulsCache[rootId] || [];
+    const prevOutput = this.resulsCacheBackup.output;
+    const curOutput = this.resulsCache.output;
 
     const addedFiles = [] as File[];
     const changedFiles = [] as File[];
@@ -375,7 +395,7 @@ export class PipelineCache {
         continue;
       }
 
-      if (curFile.content === prevFile.content) {
+      if (curFile.content !== prevFile.content) {
         changedFiles.push(curFile);
       }
     }
@@ -403,8 +423,28 @@ export class PipelineCache {
     return { addedFiles, changedFiles, removedFiles, queryTriggers };
   }
 
-  write(id: string, files: File[]) {
-    this.resulsCache[id] = files;
+  writeOutput(files: File[]) {
+    this.resulsCache.output = files;
+  }
+
+  hasResult(id: string): boolean {
+    if (this.resulsCache.results[id] !== undefined) return true;
+    if (!this.invalidated && this.resulsCacheBackup.results[id] !== undefined)
+      return true;
+    return false;
+  }
+
+  readResult(id: string): File[] | undefined {
+    if (this.resulsCache.results[id]) return this.resulsCache.results[id];
+    if (!this.invalidated && this.resulsCacheBackup.results[id]) {
+      this.resulsCache.results[id] = this.resulsCacheBackup.results[id];
+      return this.resulsCache.results[id];
+    }
+    return undefined;
+  }
+
+  writeResult(id: string, files: File[]) {
+    this.resulsCache.results[id] = files;
   }
 
   pipelineKey(pipeline: Pipeline) {

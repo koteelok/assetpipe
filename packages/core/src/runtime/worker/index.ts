@@ -8,6 +8,6 @@ if (parentPort) {
   comlink.expose(new PipelineExecutor(), nodeEndpoint(parentPort));
 }
 
-export type { PipelineCache } from "./cache";
+export type { PipelineCacheManager } from "./cache";
 export * from "./executor";
 export type { SerializedExecutorState } from "./state";

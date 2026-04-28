@@ -266,7 +266,7 @@ export class PipelineWatcher {
       const { outputDirectory, cacheDirectory, onOutput } = this.options;
 
       try {
-        const files = await this.executor.computePipelineResults(
+        const files = await this.executor.computePipelineOutput(
           this.tempDirectory,
         );
 

@@ -8,7 +8,7 @@ import {
   QueryPipeline,
 } from "../../pipelines";
 import type { File } from "../../types";
-import { PipelineCache } from "./cache";
+import { PipelineCacheManager } from "./cache";
 import { PipelineState } from "./state";
 import { cloneFiles, exists } from "../../utils";
 import { AssetpipeOptionsWithDefaults } from "../options";
@@ -19,7 +19,7 @@ declare global {
 
 export class PipelineExecutor {
   public state!: PipelineState;
-  public cache?: PipelineCache;
+  public cache?: PipelineCacheManager;
   private abortController?: AbortController;
   private options!: AssetpipeOptionsWithDefaults;
 
@@ -30,7 +30,7 @@ export class PipelineExecutor {
 
     if (this.options.cacheDirectory) {
       // typecript is dumb lol
-      this.cache = new PipelineCache(this.state, {
+      this.cache = new PipelineCacheManager(this.state, {
         cacheDirectory: this.options.cacheDirectory,
         ...this.options,
       });
@@ -170,14 +170,12 @@ export class PipelineExecutor {
     pipeline.cacheMisses.add(eventPath);
   }
 
-  public async computePipelineResults(tempDirectory: string) {
+  public async computePipelineOutput(tempDirectory: string) {
     this.abortController?.abort();
     this.abortController = new AbortController();
 
     if (InteractivePipeline.is(this.state.root)) {
-      if (this.cache) {
-        this.cache.waterfallCacheHits(this.state.root);
-      }
+      this.cache?.waterfallCacheHits(this.state.root);
 
       for (const pipeline of this.state.interactivePipelines) {
         pipeline.resultPromise = undefined;
@@ -186,6 +184,8 @@ export class PipelineExecutor {
       globalThis.CURRENT_TEMP_DIR = tempDirectory;
       await this.computeResult(this.state.root, this.abortController.signal);
       globalThis.CURRENT_TEMP_DIR = undefined;
+
+      this.cache?.writeOutput(this.state.root.result);
 
       return this.state.root.result;
     }
@@ -229,7 +229,7 @@ export class PipelineExecutor {
 
     if (this.cache && parent.cacheHit) {
       if (parent.firstDirtyPull !== undefined) {
-        const cachedFiles = this.cache.read(
+        const cachedFiles = this.cache.readResult(
           this.cache.beforePullKey(parent, parent.firstDirtyPull),
         );
 
@@ -241,13 +241,15 @@ export class PipelineExecutor {
             parent.firstDirtyPull,
           );
 
-          this.cache.write(this.cache.pipelineKey(parent), parent.result);
+          this.cache.writeResult(this.cache.pipelineKey(parent), parent.result);
 
           resolve();
           return parent.resultPromise;
         }
       } else {
-        const cachedFiles = this.cache.read(this.cache.pipelineKey(parent));
+        const cachedFiles = this.cache.readResult(
+          this.cache.pipelineKey(parent),
+        );
 
         if (cachedFiles) {
           parent.result = cachedFiles;
@@ -274,7 +276,7 @@ export class PipelineExecutor {
 
       parent.result = await this.executeCommands(parent, files, signal);
 
-      this.cache?.write(this.cache.pipelineKey(parent), parent.result);
+      this.cache?.writeResult(this.cache.pipelineKey(parent), parent.result);
 
       resolve();
       return parent.resultPromise;
@@ -287,13 +289,13 @@ export class PipelineExecutor {
         const cachedFiles =
           this.cache &&
           !parent.cacheMisses.has(file.content) &&
-          this.cache.read(this.cache.queryFileKey(parent, file));
+          this.cache.readResult(this.cache.queryFileKey(parent, file));
 
         if (cachedFiles) {
           parent.result.push(...cachedFiles);
         } else {
           const files = await this.executeCommands(parent, [file], signal);
-          this.cache?.write(this.cache.queryFileKey(parent, file), files);
+          this.cache?.writeResult(this.cache.queryFileKey(parent, file), files);
           parent.result.push(...files);
         }
       }
@@ -328,7 +330,7 @@ export class PipelineExecutor {
         const cachedFiles =
           this.cache &&
           noCacheMisses &&
-          this.cache.read(this.cache.queryGroupKey(parent, tag));
+          this.cache.readResult(this.cache.queryGroupKey(parent, tag));
 
         if (cachedFiles) {
           parent.result.push(...cachedFiles);
@@ -349,7 +351,7 @@ export class PipelineExecutor {
         signal,
       );
 
-      this.cache?.write(this.cache.pipelineKey(parent), parent.result);
+      this.cache?.writeResult(this.cache.pipelineKey(parent), parent.result);
 
       resolve();
       return parent.resultPromise;
@@ -383,7 +385,7 @@ export class PipelineExecutor {
           break;
 
         case "pull":
-          this.cache?.write(this.cache.beforePullKey(parent, i), output);
+          this.cache?.writeResult(this.cache.beforePullKey(parent, i), output);
 
           var pulls: Pipeline[] = [command.pipeline];
 

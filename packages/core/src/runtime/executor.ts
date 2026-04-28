@@ -75,7 +75,7 @@ export async function run(options: AssetpipeOptions) {
     await mkdir(tempDirectory, { recursive: true });
   }
 
-  const files = await executor.computePipelineResults(tempDirectory);
+  const files = await executor.computePipelineOutput(tempDirectory);
 
   let outputChanges: ExecutionMetadata | undefined;
 
