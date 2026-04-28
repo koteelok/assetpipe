@@ -210,15 +210,13 @@ export class PipelineCacheManager {
           );
 
           if (state.glob === "") {
-            const fileDirname = path.resolve(
-              this.options.queryBase ? this.options.queryBase : "",
-              path.dirname(state.base),
-            );
-            const fileBasename = path.basename(state.base);
+            const filePath = path.resolve(this.options.queryBase, state.base);
+            const fileDirname = path.dirname(filePath);
+            const fileBasename = path.basename(filePath);
 
-            if (!(await existsFile(fileDirname))) {
+            if (!(await existsFile(filePath))) {
               console.warn(
-                `Failed query (${path.join(pipeline.context, query)}). File does not exist: ${path.join(fileDirname, fileBasename)}`,
+                `Failed query (${path.join(pipeline.context, query)}). File does not exist: ${filePath}`,
               );
             }
 
