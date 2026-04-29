@@ -9,13 +9,5 @@
   },
   "tui": {
     "autoExit": true
-  },
-  "plugins": [
-    {
-      "plugin": "@nx/eslint/plugin",
-      "options": {
-        "targetName": "lint"
-      }
-    }
-  ]
+  }
 }
