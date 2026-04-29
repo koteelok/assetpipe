@@ -1,3 +1,8 @@
+const parsableRE = /\.json/;
+export function isParsableRequest(url: string) {
+  return parsableRE.test(url);
+}
+
 const rawRE = /(\?|&)raw(?:&|$)/;
 export function isRawRequest(url: string) {
   return rawRE.test(url);

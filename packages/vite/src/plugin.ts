@@ -21,6 +21,7 @@ import {
 } from "./utils";
 import { encodeURIPath } from "./utils/encodeURIPath";
 import { joinUrlSegments } from "./utils/joinUrlSegments";
+import { isParsableRequest } from "./utils/viteRequests";
 
 export interface AssetpipePluginOptions {
   /**
@@ -49,10 +50,10 @@ export interface AssetpipePluginOptions {
    *
    * @example
    * ```ts
-   * import hero from "#/assets/hero.png";
+   * import hero from "/assets/hero.png";
    * ```
    *
-   * @default "#/"
+   * @default "/"
    */
   prefix?: string;
 
@@ -93,7 +94,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
       "cacheDirectory" in _pluginOptions
         ? _pluginOptions.cacheDirectory
         : ".assetpipe/cache",
-    prefix: _pluginOptions.prefix || "#/",
+    prefix: _pluginOptions.prefix || "/",
     handleReload: _pluginOptions.handleReload,
     resolveImport: _pluginOptions.resolveImport,
   };
@@ -174,7 +175,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
       const module = resolveImport(config, source);
       if (module) return source;
 
-      const withoutPrefix = `/${source.slice(options.prefix.length)}`; // "#/test.txt?raw" → "/test.txt?raw"
+      const withoutPrefix = `/${source.slice(options.prefix.length)}`; // "@/test.txt?raw" → "/test.txt?raw"
       const pipelinePath = cleanUrl(withoutPrefix); // "/test.txt"
 
       if (pipelineFileMap.has(pipelinePath)) {
@@ -192,8 +193,10 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
     async load(id) {
       const config = this.environment.getTopLevelConfig();
 
+      // if (id.startsWith("\0assetpipeImport:")) {
       const module = resolveImport(config, id);
       if (module) return module;
+      // }
 
       if (!id.startsWith("\0assetpipe:")) {
         return;
@@ -203,6 +206,10 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
       const cleanId = cleanUrl(id);
 
       const file = pipelineFileMap.get(cleanId)!;
+
+      if (isParsableRequest(id)) {
+        return readFile(file.content, "utf-8");
+      }
 
       // ?raw: return file content as string
       if (isRawRequest(id)) {
@@ -239,6 +246,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
         entry: options.entry,
         outputDirectory: options.outputDirectory,
         cacheDirectory: options.cacheDirectory,
+        useWorker: false,
         onOutput: (files, metadata) => {
           if (!metadata) {
             throw new Error(
