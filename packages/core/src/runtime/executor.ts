@@ -112,7 +112,7 @@ export async function run(options: AssetpipeOptions) {
     }
   } else {
     if (outputDirectory) {
-      await rm(outputDirectory, { recursive: true });
+      await rm(outputDirectory, { recursive: true, force: true });
     }
   }
 
