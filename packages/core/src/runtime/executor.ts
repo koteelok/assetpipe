@@ -123,13 +123,14 @@ export async function run(options: AssetpipeOptions) {
   if (files) {
     if (outputDirectory) {
       await Promise.all(
-        files.map((file) => {
-          const filePath = path.join(
-            outputDirectory,
-            file.dirname,
-            file.basename,
+        files.map(async (file) => {
+          await mkdir(path.join(outputDirectory, file.dirname), {
+            recursive: true,
+          });
+          await copyFile(
+            file.content,
+            path.join(outputDirectory, file.dirname, file.basename),
           );
-          return copyFile(file.content, filePath);
         }),
       );
     }

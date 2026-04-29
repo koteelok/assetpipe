@@ -146,6 +146,7 @@ export class PipelineCacheManager {
 
   async saveResults() {
     if (!this.resultsPath) return;
+
     await mkdir(path.dirname(this.resultsPath), { recursive: true });
     await writeFile(
       this.resultsPath,
@@ -154,39 +155,62 @@ export class PipelineCacheManager {
     );
     this.resulsCacheBackup.copy(this.resulsCache);
 
-    for (const directory of this.codeDirectories) {
+    for (let i = 0; i < this.codeDirectories.length; i++) {
+      const directory = this.codeDirectories[i];
       const snapshotPath = path.join(
         this.sourceCodeSnapshotsPath,
         shortHash(directory),
       );
-
       await writeSnapshot(directory, snapshotPath);
     }
 
     const writePromises: Record<string, Promise<string>> = {};
 
-    await Promise.all(
-      this.state.queryPipelines.flatMap((pipeline) =>
-        Object.keys(pipeline.states).map(async (query) => {
-          const state = pipeline.states[query];
-          const base = path.resolve(this.options.queryBase, state.base);
-          const snapshotPath = path.join(
-            this.querySnapshotsPath,
-            shortHash(query),
-          );
+    for (let i = 0; i < this.state.queryPipelines.length; i++) {
+      const pipeline = this.state.queryPipelines[i];
+      for (const query in pipeline.states) {
+        const state = pipeline.states[query];
+        const snapshotPath = path.join(
+          this.querySnapshotsPath,
+          shortHash(query),
+        );
 
-          if (!(await exists(base))) {
-            throw new Error(
-              `Failed query (${path.join(pipeline.context, query)}). Directory does not exist: ${base}`,
+        if (state.glob === "") {
+          const filePath = path.resolve(this.options.queryBase, state.base);
+          const fileDirname = path.dirname(filePath);
+
+          if (!(await existsFile(filePath))) {
+            console.warn(
+              `Failed query (${path.join(pipeline.context, query)}). File does not exist: ${filePath}`,
             );
           }
 
-          writePromises[state.base] ??= writeSnapshot(base, snapshotPath, {
-            ignore: this.state.ignorePatterns,
-          });
-        }),
-      ),
-    );
+          writePromises[state.base] ??= writeSnapshot(
+            fileDirname,
+            snapshotPath,
+            {
+              ignore: this.state.ignorePatterns,
+            },
+          );
+
+          continue;
+        }
+
+        const base = path.resolve(this.options.queryBase, state.base);
+
+        if (!(await exists(base))) {
+          throw new Error(
+            `Failed query (${path.join(pipeline.context, query)}). Directory does not exist: ${base}`,
+          );
+        }
+
+        writePromises[state.base] ??= writeSnapshot(base, snapshotPath, {
+          ignore: this.state.ignorePatterns,
+        });
+      }
+    }
+
+    await Promise.all(Object.values(writePromises));
   }
 
   clear() {

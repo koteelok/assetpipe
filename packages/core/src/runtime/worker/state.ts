@@ -13,6 +13,7 @@ import {
 } from "../../pipelines";
 import { clonePipeline } from "../../utils";
 import type { AssetpipeOptions } from "../options";
+import { fileURLToPath } from "url";
 
 interface IgnoreInfo {
   context: string;
@@ -140,7 +141,7 @@ export class PipelineState {
   }
 
   public static async create(options: AssetpipeOptions) {
-    const jiti = createJiti(__filename, {
+    const jiti = createJiti(globalThis.__filename ?? import.meta.url, {
       fsCache: options.cacheDirectory
         ? path.join(options.cacheDirectory, "jiti")
         : false,

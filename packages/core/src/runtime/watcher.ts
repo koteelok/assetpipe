@@ -35,8 +35,6 @@ export class PipelineWatcher {
     if (this.active) return;
     this.active = true;
 
-    this.onSourceCodeChange.enable();
-
     const { executor, state } = await createExecutor(this.options);
     this.executor = executor;
     this.state = state;
@@ -68,6 +66,7 @@ export class PipelineWatcher {
     await this.subscribeToQueries();
     await this.run();
 
+    this.onSourceCodeChange.enable();
     this.onQueryTriggered.enable();
   }
 
@@ -291,7 +290,7 @@ export class PipelineWatcher {
                   file.dirname,
                   file.basename,
                 );
-                return rm(filePath, { force: true });
+                return rm(filePath, { recursive: true, force: true });
               }),
             );
           }
@@ -307,8 +306,11 @@ export class PipelineWatcher {
         if (files) {
           if (outputDirectory) {
             await Promise.all(
-              files.map((file) => {
-                return copyFile(
+              files.map(async (file) => {
+                await mkdir(path.join(outputDirectory, file.dirname), {
+                  recursive: true,
+                });
+                await copyFile(
                   file.content,
                   path.join(outputDirectory, file.dirname, file.basename),
                 );
@@ -319,6 +321,8 @@ export class PipelineWatcher {
           onOutput?.(files, outputChanges);
         }
       } catch (error) {
+        console.log("maybe here?");
+
         if (cacheDirectory) {
           await this.executor.restoreCacheFromBackup();
         }
