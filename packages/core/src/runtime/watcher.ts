@@ -1,5 +1,5 @@
 import type { AsyncSubscription } from "@parcel/watcher";
-import ParcelWatcher, { subscribe } from "@parcel/watcher";
+import ParcelWatcher from "@parcel/watcher";
 import { randomUUID } from "crypto";
 import { copyFile, mkdir, rm } from "fs/promises";
 import { tmpdir } from "os";
@@ -97,7 +97,7 @@ export class PipelineWatcher {
     const subscriptions = [];
     for (const directory of codeDirectories) {
       subscriptions.push(
-        subscribe(directory, (errs, events) => {
+        ParcelWatcher.subscribe(directory, (errs, events) => {
           for (const event of events) {
             if (codeFiles.has(event.path)) {
               this.onSourceCodeChange.call();
@@ -174,7 +174,7 @@ export class PipelineWatcher {
           }
 
           subscriptions.push(
-            subscribe(
+            ParcelWatcher.subscribe(
               fileDirname,
               (err, events) => {
                 for (let i = 0; i < events.length; i++) {
@@ -207,7 +207,7 @@ export class PipelineWatcher {
         }
 
         subscriptions.push(
-          subscribe(
+          ParcelWatcher.subscribe(
             basePath,
             (err, events) => {
               for (let i = 0; i < events.length; i++) {

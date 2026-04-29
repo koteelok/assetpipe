@@ -1,4 +1,4 @@
-import ParcelWatcher, { getEventsSince, writeSnapshot } from "@parcel/watcher";
+import ParcelWatcher from "@parcel/watcher";
 import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import path from "path";
 import type { SetRequired } from "type-fest";
@@ -116,7 +116,10 @@ export class PipelineCacheManager {
         const snapshotExists = await exists(snapshotPath);
 
         if (snapshotExists) {
-          const events = await getEventsSince(directory, snapshotPath);
+          const events = await ParcelWatcher.getEventsSince(
+            directory,
+            snapshotPath,
+          );
 
           for (const event of events) {
             if (this.codeFiels.has(event.path)) {
@@ -161,7 +164,7 @@ export class PipelineCacheManager {
         this.sourceCodeSnapshotsPath,
         shortHash(directory),
       );
-      await writeSnapshot(directory, snapshotPath);
+      await ParcelWatcher.writeSnapshot(directory, snapshotPath);
     }
 
     const writePromises: Record<string, Promise<string>> = {};
@@ -185,7 +188,7 @@ export class PipelineCacheManager {
             );
           }
 
-          writePromises[state.base] ??= writeSnapshot(
+          writePromises[state.base] ??= ParcelWatcher.writeSnapshot(
             fileDirname,
             snapshotPath,
             {
@@ -204,9 +207,13 @@ export class PipelineCacheManager {
           );
         }
 
-        writePromises[state.base] ??= writeSnapshot(base, snapshotPath, {
-          ignore: this.state.ignorePatterns,
-        });
+        writePromises[state.base] ??= ParcelWatcher.writeSnapshot(
+          base,
+          snapshotPath,
+          {
+            ignore: this.state.ignorePatterns,
+          },
+        );
       }
     }
 
@@ -246,7 +253,7 @@ export class PipelineCacheManager {
 
             eventsPromises[state.base] ??= (async () => {
               if (await exists(snapshotPath)) {
-                return getEventsSince(fileDirname, snapshotPath, {
+                return ParcelWatcher.getEventsSince(fileDirname, snapshotPath, {
                   ignore: this.state.ignorePatterns,
                 });
               }
@@ -290,7 +297,7 @@ export class PipelineCacheManager {
 
             eventsPromises[state.base] ??= (async () => {
               if (await exists(snapshotPath)) {
-                return getEventsSince(basePath, snapshotPath, {
+                return ParcelWatcher.getEventsSince(basePath, snapshotPath, {
                   ignore: this.state.ignorePatterns,
                 });
               }
