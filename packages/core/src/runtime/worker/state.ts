@@ -11,9 +11,7 @@ import {
   PipelineMixin,
   QueryPipeline,
 } from "../../pipelines";
-import { clonePipeline } from "../../utils";
 import type { AssetpipeOptions } from "../options";
-import { fileURLToPath } from "url";
 
 interface IgnoreInfo {
   context: string;
@@ -158,7 +156,7 @@ export class PipelineState {
     }
 
     const state = new PipelineState();
-    state.root = clonePipeline(pipeline);
+    state.root = pipeline;
     state.prepassPipeline(state.root);
 
     return state;

@@ -6,7 +6,6 @@ export class PipelineMixin<TSchema extends Pipeline> {
   static instances: PipelineMixin<any>[] = [];
   static mixinKey = "$isPipeline";
   private instanceKey: string;
-  private parentKeys: string[] = [];
 
   constructor(
     private name: string,
@@ -14,11 +13,6 @@ export class PipelineMixin<TSchema extends Pipeline> {
     private parent?: PipelineMixin<any>,
   ) {
     this.instanceKey = `$is${this.name}`;
-    let current = parent;
-    while (current) {
-      this.parentKeys.push(current.instanceKey);
-      current = current.parent;
-    }
     PipelineMixin.instances.push(this);
   }
 
@@ -35,14 +29,16 @@ export class PipelineMixin<TSchema extends Pipeline> {
   }
 
   mix(obj: any, options: Partial<TSchema>) {
-    for (const mixin of PipelineMixin.instances) {
+    for (let i = 0; i < PipelineMixin.instances.length; i++) {
+      const mixin = PipelineMixin.instances[i];
       obj[mixin.instanceKey] = false;
     }
     obj[PipelineMixin.mixinKey] = this;
-    obj[this.instanceKey] = true;
-    for (const parentSymbol of this.parentKeys) {
-      obj[parentSymbol] = true;
+    let current: PipelineMixin<any> | undefined = this;
+    while (current) {
+      obj[current.instanceKey] = true;
+      current.applyOptions(obj, options);
+      current = current.parent;
     }
-    return this.applyOptions(obj, options);
   }
 }

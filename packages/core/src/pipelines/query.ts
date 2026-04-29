@@ -22,16 +22,13 @@ export interface QueryPipeline extends InteractivePipeline {
 export const QueryPipeline = new PipelineMixin<QueryPipeline>(
   "QueryPipeline",
   (obj, options) => {
-    obj.commands = options.commands ?? [];
-    obj.cacheHit = false;
-    obj.result = [];
     obj.query = options.query ?? [];
-    obj.queryResult = [];
-    obj.filteredQueryResult = [];
-    obj.cacheMisses = new Set();
-    obj.context = "";
-    obj.states = {};
-    obj.matchers = {};
+    obj.queryResult = options.queryResult ?? [];
+    obj.filteredQueryResult = options.filteredQueryResult ?? [];
+    obj.cacheMisses = options.cacheMisses ?? new Set();
+    obj.context = options.context ?? "";
+    obj.states = options.states ?? {};
+    obj.matchers = options.matchers ?? {};
     obj.claim = options.claim;
     obj.ignore = options.ignore;
     obj.parallel = options.parallel;

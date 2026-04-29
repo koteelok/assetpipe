@@ -14,9 +14,10 @@ export const InteractivePipeline = new PipelineMixin<InteractivePipeline>(
   "InteractivePipeline",
   (obj, options) => {
     obj.commands = options.commands ?? [];
-    obj.cacheHit = false;
-    obj.firstDirtyPull = undefined;
-    obj.result = [];
+    obj.cacheHit = options.cacheHit ?? false;
+    obj.firstDirtyPull = options.firstDirtyPull ?? undefined;
+    obj.result = options.result ?? [];
+    obj.resultPromise = options.resultPromise;
     return obj;
   },
 );

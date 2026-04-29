@@ -9,9 +9,6 @@ export interface GroupPipeline extends InteractivePipeline {
 export const GroupPipeline = new PipelineMixin<GroupPipeline>(
   "GroupPipeline",
   (obj, options) => {
-    obj.commands = options.commands ?? [];
-    obj.cacheHit = false;
-    obj.result = options.result ?? [];
     obj.children = options.children ?? [];
     return obj;
   },

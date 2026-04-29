@@ -17,10 +17,10 @@ export const IgnorePipeline = new PipelineMixin<IgnorePipeline>(
   "IgnorePipeline",
   (obj, options) => {
     obj.query = options.query ?? [];
-    obj.queryResult = [];
-    obj.context = "";
-    obj.states = {};
-    obj.matchers = {};
+    obj.queryResult = options.queryResult ?? [];
+    obj.context = options.context ?? "";
+    obj.states = options.states ?? {};
+    obj.matchers = options.matchers ?? {};
     return obj;
   },
 );
