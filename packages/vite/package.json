@@ -27,8 +27,11 @@
     "@assetpipe/core": "*",
     "sirv": "^3.0.0"
   },
+  "devDependencies": {
+    "tsdown": "^0.15.6"
+  },
   "peerDependencies": {
-    "vite": ">=6"
+    "vite": ">=7"
   },
   "nx": {
     "name": "vite",

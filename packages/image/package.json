@@ -29,6 +29,9 @@
     "maxrects-packer": "2.7.3",
     "sharp": "0.33.3"
   },
+  "devDependencies": {
+    "tsdown": "^0.15.6"
+  },
   "nx": {
     "name": "image",
     "targets": {

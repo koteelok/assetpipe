@@ -26,6 +26,9 @@
   "dependencies": {
     "@assetpipe/core": "*"
   },
+  "devDependencies": {
+    "tsdown": "^0.15.6"
+  },
   "nx": {
     "name": "config",
     "targets": {
