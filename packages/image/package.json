@@ -24,8 +24,8 @@
     "dev": "tsdown --watch"
   },
   "dependencies": {
-    "@assetpipe/core": "*",
-    "@assetpipe/config": "*",
+    "@assetpipe/core": "^0.1.0",
+    "@assetpipe/config": "^0.1.0",
     "maxrects-packer": "2.7.3",
     "sharp": "0.33.3"
   },

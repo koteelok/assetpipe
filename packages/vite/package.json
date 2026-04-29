@@ -24,7 +24,7 @@
     "dev": "tsdown --watch"
   },
   "dependencies": {
-    "@assetpipe/core": "*",
+    "@assetpipe/core": "^0.1.0",
     "sirv": "^3.0.0"
   },
   "devDependencies": {
