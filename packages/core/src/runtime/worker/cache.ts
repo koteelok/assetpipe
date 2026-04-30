@@ -338,7 +338,10 @@ export class PipelineCacheManager {
       for (const child of parent.children) {
         this.waterfallCacheHits(child);
 
-        if (InteractivePipeline.is(child) && !child.cacheHit) {
+        if (
+          InteractivePipeline.is(child) &&
+          (!child.cacheHit || child.firstDirtyPull !== undefined)
+        ) {
           parent.cacheHit = false;
           break;
         }
