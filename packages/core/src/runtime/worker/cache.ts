@@ -456,7 +456,7 @@ export class PipelineCacheManager {
   }
 
   writeOutput(files: File[]) {
-    this.resulsCache.output = files;
+    this.resulsCache.output = cloneFiles(files);
   }
 
   hasResult(id: string): boolean {
@@ -476,7 +476,7 @@ export class PipelineCacheManager {
   }
 
   writeResult(id: string, files: File[]) {
-    this.resulsCache.results[id] = files;
+    this.resulsCache.results[id] = cloneFiles(files);
   }
 
   pipelineKey(pipeline: Pipeline) {
