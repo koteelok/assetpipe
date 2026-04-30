@@ -343,7 +343,6 @@ export class PipelineCacheManager {
           (!child.cacheHit || child.firstDirtyPull !== undefined)
         ) {
           parent.cacheHit = false;
-          break;
         }
       }
     }
