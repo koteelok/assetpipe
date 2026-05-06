@@ -21,7 +21,7 @@ export interface QueryPipeline extends InteractivePipeline {
   query: string[];
   queryResult: File[];
   filteredQueryResult: File[];
-  cacheMisses: Set<string>;
+  activeCacheMisses: Set<string>;
   pendingCacheMisses: Set<string>;
   context: string;
   states: Record<string, QueryState>;
@@ -37,7 +37,7 @@ export const QueryPipeline = new PipelineMixin<QueryPipeline, QueryOptions>(
     pipeline.query = [...options.query];
     pipeline.queryResult = [];
     pipeline.filteredQueryResult = [];
-    pipeline.cacheMisses = new Set();
+    pipeline.activeCacheMisses = new Set();
     pipeline.pendingCacheMisses = new Set();
     pipeline.context = "";
     pipeline.states = {};

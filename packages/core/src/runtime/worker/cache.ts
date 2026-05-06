@@ -354,24 +354,15 @@ export class PipelineCacheManager {
   drainPendingCacheMisses() {
     for (const pipeline of this.state.queryPipelines) {
       for (const miss of pipeline.pendingCacheMisses) {
-        pipeline.cacheMisses.add(miss);
+        pipeline.activeCacheMisses.add(miss);
       }
       pipeline.pendingCacheMisses.clear();
     }
   }
 
-  commitCacheMisses() {
+  drainActiveCacheMisses() {
     for (const pipeline of this.state.queryPipelines) {
-      pipeline.cacheMisses.clear();
-    }
-  }
-
-  rollbackCacheMisses() {
-    for (const pipeline of this.state.queryPipelines) {
-      for (const miss of pipeline.cacheMisses) {
-        pipeline.pendingCacheMisses.add(miss);
-      }
-      pipeline.cacheMisses.clear();
+      pipeline.activeCacheMisses.clear();
     }
   }
 
@@ -392,7 +383,7 @@ export class PipelineCacheManager {
     }
 
     if (QueryPipeline.is(parent)) {
-      parent.cacheHit = parent.cacheHit || parent.cacheMisses.size === 0;
+      parent.cacheHit = parent.cacheHit || parent.activeCacheMisses.size === 0;
     }
 
     if (InteractivePipeline.is(parent)) {
@@ -488,9 +479,9 @@ export class PipelineCacheManager {
     for (let i = 0; i < this.state.queryPipelines.length; i++) {
       const queryPipeline = this.state.queryPipelines[i];
       if (!queryPipeline.cacheHit) {
-        const cacheMisses = Array.from(queryPipeline.cacheMisses);
-        for (let j = 0; j < cacheMisses.length; j++) {
-          queryTriggers.push(cacheMisses[j]);
+        const activeCacheMisses = Array.from(queryPipeline.activeCacheMisses);
+        for (let j = 0; j < activeCacheMisses.length; j++) {
+          queryTriggers.push(activeCacheMisses[j]);
         }
       }
     }

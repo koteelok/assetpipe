@@ -140,7 +140,6 @@ export async function run(options: AssetpipeOptions) {
 
   if (cacheDirectory) {
     await executor.saveResultsToCache();
-    await executor.commitCacheMisses();
   } else {
     await rm(tempDirectory, { recursive: true });
   }

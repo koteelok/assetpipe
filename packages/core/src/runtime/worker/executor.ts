@@ -174,12 +174,8 @@ export class PipelineExecutor {
     pipeline.pendingCacheMisses.add(eventPath);
   }
 
-  public async commitCacheMisses(): Promise<void> {
-    this.cache?.commitCacheMisses();
-  }
-
-  public async rollbackCacheMisses(): Promise<void> {
-    this.cache?.rollbackCacheMisses();
+  public async drainActiveCacheMisses(): Promise<void> {
+    this.cache?.drainActiveCacheMisses();
   }
 
   public async computePipelineOutput(tempDirectory: string) {
@@ -307,7 +303,7 @@ export class PipelineExecutor {
       for (const file of parent.filteredQueryResult) {
         const cachedFiles =
           this.cache &&
-          !parent.cacheMisses.has(file.content) &&
+          !parent.activeCacheMisses.has(file.content) &&
           this.cache.readResult(this.cache.queryFileKey(parent, file));
 
         if (cachedFiles) {
@@ -340,7 +336,7 @@ export class PipelineExecutor {
         let noCacheMisses = true;
 
         for (const file of tagMap[tag]) {
-          if (parent.cacheMisses.has(file.content)) {
+          if (parent.activeCacheMisses.has(file.content)) {
             noCacheMisses = false;
             break;
           }
