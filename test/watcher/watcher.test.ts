@@ -1,37 +1,9 @@
 import { watch } from "@assetpipe/core/runtime";
 import { File } from "@assetpipe/core/types";
-import { mkdir, readFile, rm, rmdir, unlink, writeFile } from "fs/promises";
+import { mkdir, readFile, rm, unlink, writeFile } from "fs/promises";
 import { join, resolve } from "path";
-import { afterAll, beforeEach, describe, expect, Mock, test, vi } from "vitest";
-
-function waitForCalls<T extends (...args: any[]) => any>(
-  spy: Mock<T>,
-  callCount: number,
-  timeout = 10_000,
-) {
-  return new Promise<Parameters<T>>((resolve, reject) => {
-    const timer = setTimeout(
-      () =>
-        reject(
-          new Error(
-            `Timed out waiting for console.log call #${callCount}. Got ${spy.mock.calls.length} call(s).`,
-          ),
-        ),
-      timeout,
-    );
-
-    const check = () => {
-      if (spy.mock.calls.length >= callCount) {
-        clearTimeout(timer);
-        resolve(spy.mock.calls[callCount - 1] as Parameters<T>);
-      } else {
-        setTimeout(check, 50);
-      }
-    };
-
-    check();
-  });
-}
+import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
+import { waitForCalls } from "../utils";
 
 describe("watcher mode", () => {
   const entry = resolve(__dirname, "pipeline.ts");

@@ -33,7 +33,6 @@ expect.extend({
   },
 });
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
 declare module "vitest" {
   interface Matchers<T> {
     toConsistOf: (reference: string) => void;
