@@ -1,12 +1,21 @@
 import type picomatch from "picomatch";
 
 import type { File } from "../types";
+import type { InteractiveOptions } from "./interactive";
 import { InteractivePipeline } from "./interactive";
 import { PipelineMixin } from "./pipeline";
 
 export type QueryState =
   | { kind: "file"; base: string }
   | { kind: "glob"; base: string; glob: string };
+
+export interface QueryOptions extends InteractiveOptions {
+  kind: "QueryPipeline";
+  query: string[];
+  claim?: boolean;
+  parallel?: boolean;
+  groupBy?: (file: File) => string;
+}
 
 export interface QueryPipeline extends InteractivePipeline {
   query: string[];
@@ -17,26 +26,23 @@ export interface QueryPipeline extends InteractivePipeline {
   states: Record<string, QueryState>;
   matchers: Record<string, picomatch.Matcher>;
   claim?: boolean;
-  ignore?: boolean;
   parallel?: boolean;
   groupBy?: (file: File) => string;
 }
 
-export const QueryPipeline = new PipelineMixin<QueryPipeline>(
+export const QueryPipeline = new PipelineMixin<QueryPipeline, QueryOptions>(
   "QueryPipeline",
-  (obj, options) => {
-    obj.query = options.query ?? [];
-    obj.queryResult = options.queryResult ?? [];
-    obj.filteredQueryResult = options.filteredQueryResult ?? [];
-    obj.cacheMisses = options.cacheMisses ?? new Set();
-    obj.context = options.context ?? "";
-    obj.states = options.states ?? {};
-    obj.matchers = options.matchers ?? {};
-    obj.claim = options.claim;
-    obj.ignore = options.ignore;
-    obj.parallel = options.parallel;
-    obj.groupBy = options.groupBy;
-    return obj;
+  (pipeline, options) => {
+    pipeline.query = [...options.query];
+    pipeline.queryResult = [];
+    pipeline.filteredQueryResult = [];
+    pipeline.cacheMisses = new Set();
+    pipeline.context = "";
+    pipeline.states = {};
+    pipeline.matchers = {};
+    pipeline.claim = options.claim;
+    pipeline.parallel = options.parallel;
+    pipeline.groupBy = options.groupBy;
   },
   InteractivePipeline,
 );

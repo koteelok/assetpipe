@@ -1,9 +1,14 @@
 import type picomatch from "picomatch";
 
 import type { File } from "../types";
-import type { Pipeline } from "./pipeline";
+import type { Pipeline, PipelineOptions } from "./pipeline";
 import { PipelineMixin } from "./pipeline";
 import type { QueryState } from "./query";
+
+export interface IgnoreOptions extends PipelineOptions {
+  kind: "IgnorePipeline";
+  query: string[];
+}
 
 export interface IgnorePipeline extends Pipeline {
   query: string[];
@@ -13,14 +18,13 @@ export interface IgnorePipeline extends Pipeline {
   matchers: Record<string, picomatch.Matcher>;
 }
 
-export const IgnorePipeline = new PipelineMixin<IgnorePipeline>(
+export const IgnorePipeline = new PipelineMixin<IgnorePipeline, IgnoreOptions>(
   "IgnorePipeline",
-  (obj, options) => {
-    obj.query = options.query ?? [];
-    obj.queryResult = options.queryResult ?? [];
-    obj.context = options.context ?? "";
-    obj.states = options.states ?? {};
-    obj.matchers = options.matchers ?? {};
-    return obj;
+  (pipeline, options) => {
+    pipeline.query = [...options.query];
+    pipeline.queryResult = [];
+    pipeline.context = "";
+    pipeline.states = {};
+    pipeline.matchers = {};
   },
 );

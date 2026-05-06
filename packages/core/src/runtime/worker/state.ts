@@ -9,6 +9,7 @@ import {
   InteractivePipeline,
   type Pipeline,
   PipelineMixin,
+  type PipelineOptions,
   QueryPipeline,
   type QueryState,
 } from "../../pipelines";
@@ -143,18 +144,23 @@ export class PipelineState {
         : false,
     });
 
-    const pipeline = await jiti.import<Pipeline>(path.resolve(options.entry), {
-      default: true,
-    });
+    const loaded = await jiti.import<PipelineOptions>(
+      path.resolve(options.entry),
+      { default: true },
+    );
 
-    if (!PipelineMixin.is(pipeline)) {
+    if (
+      !loaded ||
+      typeof loaded !== "object" ||
+      typeof (loaded as PipelineOptions).kind !== "string"
+    ) {
       throw new Error(
         `Default export in file is not a pipeline. (${options.entry})`,
       );
     }
 
     const state = new PipelineState();
-    state.root = pipeline;
+    state.root = PipelineMixin.materialize<Pipeline>(loaded);
     state.prepassPipeline(state.root);
 
     return state;
