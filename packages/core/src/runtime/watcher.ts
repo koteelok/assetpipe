@@ -162,71 +162,75 @@ export class PipelineWatcher {
         const query = info.query[queryIndex];
         const state = info.states[info.query[queryIndex]];
 
-        if (state.glob === "") {
-          const filePath = path.resolve(this.options.queryBase, state.base);
-          const fileDirname = path.dirname(filePath);
-          const fileBasename = path.basename(filePath);
+        switch (state.kind) {
+          case "file": {
+            const filePath = path.resolve(this.options.queryBase, state.base);
+            const fileDirname = path.dirname(filePath);
+            const fileBasename = path.basename(filePath);
 
-          if (!(await existsFile(filePath))) {
-            console.warn(
-              `Failed query (${path.join(info.context, query)}). File does not exist: ${filePath}`,
+            if (!(await existsFile(filePath))) {
+              console.warn(
+                `Failed query (${path.join(info.context, query)}). File does not exist: ${filePath}`,
+              );
+            }
+
+            subscriptions.push(
+              ParcelWatcher.subscribe(
+                fileDirname,
+                (err, events) => {
+                  for (let i = 0; i < events.length; i++) {
+                    const event = events[i];
+                    const relativePath = path.relative(fileDirname, event.path);
+
+                    if (relativePath !== fileBasename) {
+                      continue;
+                    }
+
+                    submitEvent(pipelineIndex, queryIndex, event);
+                  }
+                },
+                subscriptionOptions,
+              ),
             );
+            break;
           }
 
-          subscriptions.push(
-            ParcelWatcher.subscribe(
-              fileDirname,
-              (err, events) => {
-                for (let i = 0; i < events.length; i++) {
-                  const event = events[i];
-                  const relativePath = path.relative(fileDirname, event.path);
+          case "glob": {
+            const basePath = path.resolve(this.options.queryBase, state.base);
+            const matcher = picomatch(state.glob, {
+              windows: process.platform === "win32",
+            });
 
-                  if (relativePath !== fileBasename) {
-                    continue;
+            if (!(await exists(basePath))) {
+              console.warn(
+                `Failed query (${path.join(info.context, query)}). Directory does not exist: ${basePath}`,
+              );
+            }
+
+            subscriptions.push(
+              ParcelWatcher.subscribe(
+                basePath,
+                (err, events) => {
+                  for (let i = 0; i < events.length; i++) {
+                    const event = events[i];
+                    const relativePath = path.relative(basePath, event.path);
+
+                    if (
+                      !matcher(relativePath) &&
+                      !matcher(relativePath + path.sep)
+                    ) {
+                      continue;
+                    }
+
+                    submitEvent(pipelineIndex, queryIndex, event);
                   }
-
-                  submitEvent(pipelineIndex, queryIndex, event);
-                }
-              },
-              subscriptionOptions,
-            ),
-          );
-
-          continue;
+                },
+                subscriptionOptions,
+              ),
+            );
+            break;
+          }
         }
-
-        const basePath = path.resolve(this.options.queryBase, state.base);
-        const matcher = picomatch(state.glob, {
-          windows: process.platform === "win32",
-        });
-
-        if (!(await exists(basePath))) {
-          console.warn(
-            `Failed query (${path.join(info.context, query)}). Directory does not exist: ${basePath}`,
-          );
-        }
-
-        subscriptions.push(
-          ParcelWatcher.subscribe(
-            basePath,
-            (err, events) => {
-              for (let i = 0; i < events.length; i++) {
-                const event = events[i];
-                const relativePath = path.relative(basePath, event.path);
-
-                if (
-                  !matcher(relativePath) &&
-                  !matcher(relativePath + path.sep)
-                ) {
-                  continue;
-                }
-
-                submitEvent(pipelineIndex, queryIndex, event);
-              }
-            },
-            subscriptionOptions,
-          ),
-        );
       }
     }
 

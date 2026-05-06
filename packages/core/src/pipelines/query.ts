@@ -1,9 +1,12 @@
 import type picomatch from "picomatch";
-import type scan from "picomatch/lib/scan";
 
 import type { File } from "../types";
 import { InteractivePipeline } from "./interactive";
 import { PipelineMixin } from "./pipeline";
+
+export type QueryState =
+  | { kind: "file"; base: string }
+  | { kind: "glob"; base: string; glob: string };
 
 export interface QueryPipeline extends InteractivePipeline {
   query: string[];
@@ -11,7 +14,7 @@ export interface QueryPipeline extends InteractivePipeline {
   filteredQueryResult: File[];
   cacheMisses: Set<string>;
   context: string;
-  states: Record<string, scan.State>;
+  states: Record<string, QueryState>;
   matchers: Record<string, picomatch.Matcher>;
   claim?: boolean;
   ignore?: boolean;

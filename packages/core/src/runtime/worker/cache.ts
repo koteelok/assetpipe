@@ -178,42 +178,46 @@ export class PipelineCacheManager {
           shortHash(query),
         );
 
-        if (state.glob === "") {
-          const filePath = path.resolve(this.options.queryBase, state.base);
-          const fileDirname = path.dirname(filePath);
+        switch (state.kind) {
+          case "file": {
+            const filePath = path.resolve(this.options.queryBase, state.base);
+            const fileDirname = path.dirname(filePath);
 
-          if (!(await existsFile(filePath))) {
-            console.warn(
-              `Failed query (${path.join(pipeline.context, query)}). File does not exist: ${filePath}`,
+            if (!(await existsFile(filePath))) {
+              console.warn(
+                `Failed query (${path.join(pipeline.context, query)}). File does not exist: ${filePath}`,
+              );
+            }
+
+            writePromises[state.base] ??= ParcelWatcher.writeSnapshot(
+              fileDirname,
+              snapshotPath,
+              {
+                ignore: this.state.ignorePatterns,
+              },
             );
+            break;
           }
 
-          writePromises[state.base] ??= ParcelWatcher.writeSnapshot(
-            fileDirname,
-            snapshotPath,
-            {
-              ignore: this.state.ignorePatterns,
-            },
-          );
+          case "glob": {
+            const base = path.resolve(this.options.queryBase, state.base);
 
-          continue;
+            if (!(await exists(base))) {
+              throw new Error(
+                `Failed query (${path.join(pipeline.context, query)}). Directory does not exist: ${base}`,
+              );
+            }
+
+            writePromises[state.base] ??= ParcelWatcher.writeSnapshot(
+              base,
+              snapshotPath,
+              {
+                ignore: this.state.ignorePatterns,
+              },
+            );
+            break;
+          }
         }
-
-        const base = path.resolve(this.options.queryBase, state.base);
-
-        if (!(await exists(base))) {
-          throw new Error(
-            `Failed query (${path.join(pipeline.context, query)}). Directory does not exist: ${base}`,
-          );
-        }
-
-        writePromises[state.base] ??= ParcelWatcher.writeSnapshot(
-          base,
-          snapshotPath,
-          {
-            ignore: this.state.ignorePatterns,
-          },
-        );
       }
     }
 
@@ -240,90 +244,106 @@ export class PipelineCacheManager {
             shortHash(query),
           );
 
-          if (state.glob === "") {
-            const filePath = path.resolve(this.options.queryBase, state.base);
-            const fileDirname = path.dirname(filePath);
-            const fileBasename = path.basename(filePath);
-
-            if (!(await existsFile(filePath))) {
-              console.warn(
-                `Failed query (${path.join(pipeline.context, query)}). File does not exist: ${filePath}`,
+          switch (state.kind) {
+            case "file": {
+              const filePath = path.resolve(
+                this.options.queryBase,
+                state.base,
               );
-            }
+              const fileDirname = path.dirname(filePath);
+              const fileBasename = path.basename(filePath);
 
-            eventsPromises[state.base] ??= (async () => {
-              if (await exists(snapshotPath)) {
-                return ParcelWatcher.getEventsSince(fileDirname, snapshotPath, {
-                  ignore: this.state.ignorePatterns,
-                });
-              }
-            })();
-
-            const events = await eventsPromises[state.base];
-
-            if (!events) {
-              pipeline.cacheHit = false;
-              return;
-            }
-
-            if (events.length === 0) {
-              pipeline.cacheHit = true;
-              return;
-            }
-
-            for (let i = 0; i < events.length; i++) {
-              const event = events[i];
-              const relativePath = path.relative(fileDirname, event.path);
-
-              if (relativePath !== fileBasename) {
-                continue;
+              if (!(await existsFile(filePath))) {
+                console.warn(
+                  `Failed query (${path.join(pipeline.context, query)}). File does not exist: ${filePath}`,
+                );
               }
 
-              pipeline.cacheHit = false;
-              pipeline.cacheMisses.add(event.path);
-            }
-          } else {
-            const matcher = pipeline.matchers[query];
-            const basePath = path.resolve(
-              this.options.queryBase ? this.options.queryBase : "",
-              state.base,
-            );
+              eventsPromises[state.base] ??= (async () => {
+                if (await exists(snapshotPath)) {
+                  return ParcelWatcher.getEventsSince(
+                    fileDirname,
+                    snapshotPath,
+                    {
+                      ignore: this.state.ignorePatterns,
+                    },
+                  );
+                }
+              })();
 
-            if (!(await exists(basePath))) {
-              throw new Error(
-                `Failed query (${path.join(pipeline.context, query)}). Directory does not exist: ${basePath}`,
+              const events = await eventsPromises[state.base];
+
+              if (!events) {
+                pipeline.cacheHit = false;
+                return;
+              }
+
+              if (events.length === 0) {
+                pipeline.cacheHit = true;
+                return;
+              }
+
+              for (let i = 0; i < events.length; i++) {
+                const event = events[i];
+                const relativePath = path.relative(fileDirname, event.path);
+
+                if (relativePath !== fileBasename) {
+                  continue;
+                }
+
+                pipeline.cacheHit = false;
+                pipeline.cacheMisses.add(event.path);
+              }
+              break;
+            }
+
+            case "glob": {
+              const matcher = pipeline.matchers[query];
+              const basePath = path.resolve(
+                this.options.queryBase ? this.options.queryBase : "",
+                state.base,
               );
-            }
 
-            eventsPromises[state.base] ??= (async () => {
-              if (await exists(snapshotPath)) {
-                return ParcelWatcher.getEventsSince(basePath, snapshotPath, {
-                  ignore: this.state.ignorePatterns,
-                });
-              }
-            })();
-
-            const events = await eventsPromises[state.base];
-
-            if (!events) {
-              pipeline.cacheHit = false;
-              return;
-            }
-
-            if (events.length === 0) {
-              pipeline.cacheHit = true;
-              return;
-            }
-
-            for (let i = 0; i < events.length; i++) {
-              const event = events[i];
-              const relativePath = path.relative(basePath, event.path);
-              if (!matcher(relativePath) && !matcher(relativePath + path.sep)) {
-                continue;
+              if (!(await exists(basePath))) {
+                throw new Error(
+                  `Failed query (${path.join(pipeline.context, query)}). Directory does not exist: ${basePath}`,
+                );
               }
 
-              pipeline.cacheHit = false;
-              pipeline.cacheMisses.add(event.path);
+              eventsPromises[state.base] ??= (async () => {
+                if (await exists(snapshotPath)) {
+                  return ParcelWatcher.getEventsSince(basePath, snapshotPath, {
+                    ignore: this.state.ignorePatterns,
+                  });
+                }
+              })();
+
+              const events = await eventsPromises[state.base];
+
+              if (!events) {
+                pipeline.cacheHit = false;
+                return;
+              }
+
+              if (events.length === 0) {
+                pipeline.cacheHit = true;
+                return;
+              }
+
+              for (let i = 0; i < events.length; i++) {
+                const event = events[i];
+                const relativePath = path.relative(basePath, event.path);
+                if (
+                  !matcher(relativePath) &&
+                  !matcher(relativePath + path.sep)
+                ) {
+                  continue;
+                }
+
+                pipeline.cacheHit = false;
+                pipeline.cacheMisses.add(event.path);
+              }
+              break;
             }
           }
         }),

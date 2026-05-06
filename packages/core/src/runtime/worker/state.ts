@@ -10,6 +10,7 @@ import {
   type Pipeline,
   PipelineMixin,
   QueryPipeline,
+  type QueryState,
 } from "../../pipelines";
 import type { AssetpipeOptions } from "../options";
 
@@ -21,13 +22,7 @@ interface IgnoreInfo {
 interface QueryInfo {
   context: string;
   query: string[];
-  states: Record<
-    string,
-    {
-      base: string;
-      glob: string;
-    }
-  >;
+  states: Record<string, QueryState>;
 }
 
 export interface SerializedExecutorState {
@@ -47,11 +42,15 @@ export class PipelineState {
 
   private buildMatchers(parent: QueryPipeline | IgnorePipeline) {
     for (const query of parent.query) {
-      const state = picomatch.scan(
+      const scanned = picomatch.scan(
         path.join(parent.context, query).replace(/\\/g, "/"),
       );
+      const state: QueryState =
+        scanned.glob === ""
+          ? { kind: "file", base: scanned.base }
+          : { kind: "glob", base: scanned.base, glob: scanned.glob };
       parent.states[query] = state;
-      if (state.glob !== "") {
+      if (state.kind === "glob") {
         parent.matchers[query] = picomatch(state.glob, {
           windows: process.platform === "win32",
         });
@@ -124,14 +123,13 @@ export class PipelineState {
       queryPipelines: this.queryPipelines.map((pipeline) => ({
         context: pipeline.context,
         query: pipeline.query,
-        states: pipeline.query.reduce((acc, query) => {
-          const state = pipeline.states[query];
-          acc[query] = {
-            base: state.base,
-            glob: state.glob,
-          };
-          return acc;
-        }, {} as any),
+        states: pipeline.query.reduce(
+          (acc, query) => {
+            acc[query] = pipeline.states[query];
+            return acc;
+          },
+          {} as Record<string, QueryState>,
+        ),
       })),
 
       ignorePatterns: this.ignorePatterns,

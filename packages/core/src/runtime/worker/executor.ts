@@ -79,44 +79,48 @@ export class PipelineExecutor {
       const state = pipeline.states[query];
       const basePath = path.resolve(this.options.queryBase, state.base);
 
-      if (state.glob === "") {
-        if (!(await exists(basePath))) {
-          throw new Error(
-            `[${query}] Query error. File ${basePath} not found.`,
-          );
+      switch (state.kind) {
+        case "file": {
+          if (!(await exists(basePath))) {
+            throw new Error(
+              `[${query}] Query error. File ${basePath} not found.`,
+            );
+          }
+
+          pipeline.queryResult.push({
+            dirname: "",
+            basename: path.basename(state.base),
+            content: basePath,
+          });
+          break;
         }
 
-        pipeline.queryResult.push({
-          dirname: "",
-          basename: path.basename(state.base),
-          content: basePath,
-        });
+        case "glob": {
+          const dirents = await readdir(basePath, {
+            recursive: true,
+            withFileTypes: true,
+          }).catch(() => []);
 
-        continue;
-      }
+          if (dirents.length === 0) continue;
 
-      const dirents = await readdir(basePath, {
-        recursive: true,
-        withFileTypes: true,
-      }).catch(() => []);
+          const matcher = pipeline.matchers[query];
 
-      if (dirents.length === 0) continue;
+          for (const dirent of dirents) {
+            if (!dirent.isFile()) continue;
 
-      const matcher = pipeline.matchers[query];
+            const fullPath = path.join(dirent.parentPath, dirent.name);
+            const isMatch = matcher(path.relative(basePath, fullPath));
 
-      for (const dirent of dirents) {
-        if (!dirent.isFile()) continue;
+            if (!isMatch) continue;
 
-        const fullPath = path.join(dirent.parentPath, dirent.name);
-        const isMatch = matcher(path.relative(basePath, fullPath));
-
-        if (!isMatch) continue;
-
-        pipeline.queryResult.push({
-          basename: dirent.name,
-          dirname: path.relative(basePath, dirent.parentPath),
-          content: fullPath,
-        });
+            pipeline.queryResult.push({
+              basename: dirent.name,
+              dirname: path.relative(basePath, dirent.parentPath),
+              content: fullPath,
+            });
+          }
+          break;
+        }
       }
     }
   }

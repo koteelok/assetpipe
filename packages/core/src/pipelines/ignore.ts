@@ -1,15 +1,15 @@
 import type picomatch from "picomatch";
-import type scan from "picomatch/lib/scan";
 
 import type { File } from "../types";
 import type { Pipeline } from "./pipeline";
 import { PipelineMixin } from "./pipeline";
+import type { QueryState } from "./query";
 
 export interface IgnorePipeline extends Pipeline {
   query: string[];
   queryResult: File[];
   context: string;
-  states: Record<string, scan.State>;
+  states: Record<string, QueryState>;
   matchers: Record<string, picomatch.Matcher>;
 }
 
