@@ -61,7 +61,7 @@ export class PipelineState {
 
   private prepassPipeline(parent: Pipeline, counter = 0, context = "") {
     if (parent.id !== undefined) {
-      return parent.id;
+      return counter;
     }
 
     parent.id = counter++;
