@@ -199,18 +199,23 @@ export class PipelineExecutor {
     const occupiedFiles = new Set<string>();
 
     for (const pipeline of this.state.ignorePipelines) {
-      for (const file of pipeline.queryResult) {
+      for (let i = 0; i < pipeline.queryResult.length; i++) {
+        const file = pipeline.queryResult[i];
         occupiedFiles.add(file.content);
       }
     }
 
     for (const pipeline of this.state.queryPipelines) {
-      pipeline.filteredQueryResult = pipeline.queryResult.filter(
-        (file) => !occupiedFiles.has(file.content),
-      );
+      for (let i = 0; i < pipeline.queryResult.length; i++) {
+        const file = pipeline.queryResult[i];
+        if (!occupiedFiles.has(file.content)) {
+          pipeline.filteredQueryResult.push(file);
+        }
+      }
 
       if (pipeline.claim) {
-        for (const file of pipeline.queryResult) {
+        for (let i = 0; i < pipeline.queryResult.length; i++) {
+          const file = pipeline.queryResult[i];
           occupiedFiles.add(file.content);
         }
       }
