@@ -22,6 +22,7 @@ export interface QueryPipeline extends InteractivePipeline {
   queryResult: File[];
   filteredQueryResult: File[];
   cacheMisses: Set<string>;
+  pendingCacheMisses: Set<string>;
   context: string;
   states: Record<string, QueryState>;
   matchers: Record<string, picomatch.Matcher>;
@@ -37,6 +38,7 @@ export const QueryPipeline = new PipelineMixin<QueryPipeline, QueryOptions>(
     pipeline.queryResult = [];
     pipeline.filteredQueryResult = [];
     pipeline.cacheMisses = new Set();
+    pipeline.pendingCacheMisses = new Set();
     pipeline.context = "";
     pipeline.states = {};
     pipeline.matchers = {};

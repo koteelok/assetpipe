@@ -300,6 +300,7 @@ export class PipelineWatcher {
           }
 
           await this.executor.saveResultsToCache();
+          await this.executor.commitCacheMisses();
         } else {
           if (outputDirectory) {
             await rm(outputDirectory, { recursive: true });
@@ -329,6 +330,7 @@ export class PipelineWatcher {
 
         if (cacheDirectory) {
           await this.executor.restoreCacheFromBackup();
+          await this.executor.rollbackCacheMisses();
         }
 
         if (error instanceof Error && error.name === "AbortError") {

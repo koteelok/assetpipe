@@ -292,7 +292,7 @@ export class PipelineCacheManager {
                 }
 
                 pipeline.cacheHit = false;
-                pipeline.cacheMisses.add(event.path);
+                pipeline.pendingCacheMisses.add(event.path);
               }
               break;
             }
@@ -341,7 +341,7 @@ export class PipelineCacheManager {
                 }
 
                 pipeline.cacheHit = false;
-                pipeline.cacheMisses.add(event.path);
+                pipeline.pendingCacheMisses.add(event.path);
               }
               break;
             }
@@ -349,6 +349,30 @@ export class PipelineCacheManager {
         }),
       ),
     );
+  }
+
+  drainPendingCacheMisses() {
+    for (const pipeline of this.state.queryPipelines) {
+      for (const miss of pipeline.pendingCacheMisses) {
+        pipeline.cacheMisses.add(miss);
+      }
+      pipeline.pendingCacheMisses.clear();
+    }
+  }
+
+  commitCacheMisses() {
+    for (const pipeline of this.state.queryPipelines) {
+      pipeline.cacheMisses.clear();
+    }
+  }
+
+  rollbackCacheMisses() {
+    for (const pipeline of this.state.queryPipelines) {
+      for (const miss of pipeline.cacheMisses) {
+        pipeline.pendingCacheMisses.add(miss);
+      }
+      pipeline.cacheMisses.clear();
+    }
   }
 
   async waterfallCacheHits(parent: Pipeline) {

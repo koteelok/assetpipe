@@ -1,4 +1,4 @@
-import { watch } from "@assetpipe/core/runtime";
+import { ExecutionMetadata, watch } from "@assetpipe/core/runtime";
 import { File } from "@assetpipe/core/types";
 import { mkdir, readFile, rm, unlink, writeFile } from "fs/promises";
 import { join, resolve } from "path";
@@ -8,9 +8,11 @@ import { waitForCalls } from "../utils";
 describe("watcher mode", () => {
   const entry = resolve(__dirname, "pipeline.ts");
   const assetsDirectory = resolve(__dirname, "assets");
+  const cacheDirectory = resolve(__dirname, "cache");
 
   beforeEach(async () => {
     await rm(assetsDirectory, { recursive: true, force: true });
+    await rm(cacheDirectory, { recursive: true, force: true });
     await mkdir(assetsDirectory, { recursive: true });
     for (let i = 1; i < 5; i++) {
       await writeFile(join(assetsDirectory, `${i}.txt`), `${i}`);
@@ -19,6 +21,7 @@ describe("watcher mode", () => {
 
   afterAll(async () => {
     await rm(assetsDirectory, { recursive: true, force: true });
+    await rm(cacheDirectory, { recursive: true, force: true });
   });
 
   test("initial spawn produces output", async () => {
@@ -98,6 +101,42 @@ describe("watcher mode", () => {
     content = await readFile(files[0].content, "utf-8");
     expect(content.length).toBeGreaterThan(0);
     expect(content).toConsistOf("1 | 2 | 3 | 4");
+
+    await watcher.despawn();
+  });
+
+  test("queryTriggers do not accumulate across watch cycles", async () => {
+    const onOutput =
+      vi.fn<(files: File[], metadata?: ExecutionMetadata) => void>();
+
+    const watcher = await watch({
+      entry,
+      queryBase: __dirname,
+      cacheDirectory,
+      useWorker: false,
+      onOutput,
+    });
+
+    await watcher.spawn();
+    await waitForCalls(onOutput, 1);
+
+    await writeFile(resolve(assetsDirectory, "1.txt"), "11");
+    let [, metadata] = await waitForCalls(onOutput, 2);
+    expect(metadata?.queryTriggers).toStrictEqual([
+      resolve(assetsDirectory, "1.txt"),
+    ]);
+
+    await writeFile(resolve(assetsDirectory, "2.txt"), "22");
+    [, metadata] = await waitForCalls(onOutput, 3);
+    expect(metadata?.queryTriggers).toStrictEqual([
+      resolve(assetsDirectory, "2.txt"),
+    ]);
+
+    await writeFile(resolve(assetsDirectory, "3.txt"), "33");
+    [, metadata] = await waitForCalls(onOutput, 4);
+    expect(metadata?.queryTriggers).toStrictEqual([
+      resolve(assetsDirectory, "3.txt"),
+    ]);
 
     await watcher.despawn();
   });

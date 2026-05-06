@@ -171,12 +171,22 @@ export class PipelineExecutor {
       }
     }
     pipeline.cacheHit = false;
-    pipeline.cacheMisses.add(eventPath);
+    pipeline.pendingCacheMisses.add(eventPath);
+  }
+
+  public async commitCacheMisses(): Promise<void> {
+    this.cache?.commitCacheMisses();
+  }
+
+  public async rollbackCacheMisses(): Promise<void> {
+    this.cache?.rollbackCacheMisses();
   }
 
   public async computePipelineOutput(tempDirectory: string) {
     this.abortController?.abort();
     this.abortController = new AbortController();
+
+    this.cache?.drainPendingCacheMisses();
 
     if (InteractivePipeline.is(this.state.root)) {
       this.cache?.waterfallCacheHits(this.state.root);
