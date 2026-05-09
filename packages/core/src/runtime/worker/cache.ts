@@ -104,7 +104,6 @@ export class PipelineCacheManager {
       this.resulsCacheBackup.extract(
         JSON.parse(await readFile(this.resultsPath, "utf-8")),
       );
-      this.resulsCache.clear();
 
       let codeChanged = false;
       for (const directory of this.codeDirectories) {
@@ -135,6 +134,9 @@ export class PipelineCacheManager {
 
       if (codeChanged) {
         this.invalidated = true;
+        this.resulsCache.clear();
+      } else {
+        this.resulsCache.copy(this.resulsCacheBackup);
       }
     } catch {
       this.invalidated = true;
@@ -396,7 +398,8 @@ export class PipelineCacheManager {
 
           if (
             InteractivePipeline.is(command.pipeline) &&
-            !command.pipeline.cacheHit
+            (!command.pipeline.cacheHit ||
+              command.pipeline.firstDirtyPull !== undefined)
           ) {
             if (parent.firstDirtyPull === undefined) {
               parent.firstDirtyPull = i;
