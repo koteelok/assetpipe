@@ -342,16 +342,33 @@ export class PipelineExecutor {
           }
         }
 
+        const key = this.cache?.queryGroupKey(parent, tag);
+        const currentMembership = new Set(tagMap[tag].map((f) => f.content));
+
+        let membershipUnchanged = false;
+        if (this.cache && key !== undefined) {
+          const previousMembership = this.cache.readGroupMembership(key);
+          membershipUnchanged =
+            previousMembership !== undefined &&
+            previousMembership.symmetricDifference(currentMembership).size ===
+              0;
+        }
+
         const cachedFiles =
           this.cache &&
+          key !== undefined &&
           noCacheMisses &&
-          this.cache.readResult(this.cache.queryGroupKey(parent, tag));
+          membershipUnchanged &&
+          this.cache.readResult(key);
 
         if (cachedFiles) {
           parent.result.push(...cachedFiles);
         } else {
           const files = await this.executeCommands(parent, tagMap[tag], signal);
-          this.cache?.writeResult(this.cache.queryGroupKey(parent, tag), files);
+          if (this.cache && key !== undefined) {
+            this.cache.writeResult(key, files);
+            this.cache.writeGroupMembership(key, currentMembership);
+          }
           parent.result.push(...files);
         }
       }

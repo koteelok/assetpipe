@@ -29,10 +29,12 @@ type AssetpipeCacheOptions = SetRequired<
 
 class ExecutionCache {
   results: Record<string, File[]> = {};
+  groupMembership: Record<string, string[]> = {};
   output: File[] = [];
 
   extract(reference: any) {
     this.results = reference.results;
+    this.groupMembership = reference.groupMembership ?? {};
     this.output = reference.output;
   }
 
@@ -41,11 +43,16 @@ class ExecutionCache {
     for (const id in reference.results) {
       this.results[id] = cloneFiles(reference.results[id]);
     }
+    this.groupMembership = {};
+    for (const id in reference.groupMembership) {
+      this.groupMembership[id] = reference.groupMembership[id].slice();
+    }
     this.output = reference.output.slice();
   }
 
   clear() {
     this.results = {};
+    this.groupMembership = {};
     this.output = [];
   }
 }
@@ -514,6 +521,23 @@ export class PipelineCacheManager {
 
   writeResult(id: string, files: File[]) {
     this.resulsCache.results[id] = cloneFiles(files);
+  }
+
+  readGroupMembership(id: string): Set<string> | undefined {
+    const live = this.resulsCache.groupMembership[id];
+    if (live) return new Set(live);
+    if (!this.invalidated) {
+      const backup = this.resulsCacheBackup.groupMembership[id];
+      if (backup) {
+        this.resulsCache.groupMembership[id] = backup.slice();
+        return new Set(backup);
+      }
+    }
+    return undefined;
+  }
+
+  writeGroupMembership(id: string, members: Set<string>) {
+    this.resulsCache.groupMembership[id] = Array.from(members);
   }
 
   pipelineKey(pipeline: Pipeline) {

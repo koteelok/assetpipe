@@ -81,6 +81,37 @@ describe("groupby caching", () => {
     expect(await getCounts()).toEqual({ alpha: 2, beta: 2 });
   });
 
+  test("removing one file from a groupBy group invalidates that group's cache", async () => {
+    await writeFile(resolve(assetsDir, "alpha", "1.txt"), "a1");
+    await writeFile(resolve(assetsDir, "alpha", "2.txt"), "a2");
+    await writeFile(resolve(assetsDir, "beta", "1.txt"), "b1");
+
+    await run({
+      entry,
+      outputDirectory: outputDir,
+      cacheDirectory: cacheDir,
+      queryBase: __dirname,
+      useWorker: false,
+    });
+    expect(await getCounts()).toEqual({ alpha: 1, beta: 1 });
+
+    await new Promise((r) => setTimeout(r, 100));
+    await rm(resolve(assetsDir, "alpha", "1.txt"));
+    await new Promise((r) => setTimeout(r, 100));
+
+    await run({
+      entry,
+      outputDirectory: outputDir,
+      cacheDirectory: cacheDir,
+      queryBase: __dirname,
+      useWorker: false,
+    });
+
+    // alpha lost a member; its cached output (which embedded a1+a2) is stale
+    // and must be recomputed. beta is untouched and stays cached.
+    expect(await getCounts()).toEqual({ alpha: 2, beta: 1 });
+  });
+
   test("running an unchanged groupBy query twice doesn't recompute any group", async () => {
     await writeFile(resolve(assetsDir, "alpha", "1.txt"), "a1");
     await writeFile(resolve(assetsDir, "beta", "1.txt"), "b1");
