@@ -351,6 +351,7 @@ export class PipelineExecutor {
           parent.result.push(...cachedFiles);
         } else {
           const files = await this.executeCommands(parent, tagMap[tag], signal);
+          this.cache?.writeResult(this.cache.queryGroupKey(parent, tag), files);
           parent.result.push(...files);
         }
       }
