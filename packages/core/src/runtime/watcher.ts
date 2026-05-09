@@ -326,8 +326,6 @@ export class PipelineWatcher {
           onOutput?.(files, outputChanges);
         }
       } catch (error) {
-        console.log("maybe here?");
-
         if (cacheDirectory) {
           await this.executor.restoreCacheFromBackup();
         }
