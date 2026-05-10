@@ -1,0 +1,5 @@
+**/cache
+**/output
+**/fixture
+**/deep-fixture
+**/counters.json

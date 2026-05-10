@@ -3,6 +3,7 @@ import path from "path";
 import picomatch from "picomatch";
 
 import {
+  ClonePipeline,
   ContextPipeline,
   GroupPipeline,
   IgnorePipeline,
@@ -101,6 +102,10 @@ export class PipelineState {
       for (const child of parent.children) {
         counter = this.prepassPipeline(child, counter, context);
       }
+    }
+
+    if (ClonePipeline.is(parent)) {
+      counter = this.prepassPipeline(parent.source, counter, context);
     }
 
     if (InteractivePipeline.is(parent)) {

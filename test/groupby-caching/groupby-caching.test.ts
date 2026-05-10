@@ -1,5 +1,5 @@
 import { run } from "@assetpipe/core/runtime";
-import { mkdir, readFile, rm, writeFile } from "fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "fs/promises";
 import { resolve } from "path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
@@ -8,13 +8,13 @@ describe("groupby caching", () => {
   const cacheDir = resolve(__dirname, "cache");
   const outputDir = resolve(__dirname, "output");
   const entry = resolve(__dirname, "pipeline.ts");
-  const counterFile = resolve(__dirname, "counters.json");
+  const counterDir = resolve(__dirname, "counters");
 
   beforeEach(async () => {
     await rm(assetsDir, { recursive: true, force: true });
     await rm(cacheDir, { recursive: true, force: true });
     await rm(outputDir, { recursive: true, force: true });
-    await rm(counterFile, { force: true });
+    await rm(counterDir, { recursive: true, force: true });
     await mkdir(resolve(assetsDir, "alpha"), { recursive: true });
     await mkdir(resolve(assetsDir, "beta"), { recursive: true });
   });
@@ -23,12 +23,20 @@ describe("groupby caching", () => {
     await rm(assetsDir, { recursive: true, force: true });
     await rm(cacheDir, { recursive: true, force: true });
     await rm(outputDir, { recursive: true, force: true });
-    await rm(counterFile, { force: true });
+    await rm(counterDir, { recursive: true, force: true });
   });
 
   async function getCounts() {
     try {
-      return JSON.parse(await readFile(counterFile, "utf-8"));
+      const files = await readdir(counterDir);
+      const result: Record<string, number> = {};
+      for (const f of files) {
+        const count = JSON.parse(
+          await readFile(resolve(counterDir, f), "utf-8"),
+        );
+        result[f.replace(".json", "")] = count;
+      }
+      return result;
     } catch {
       return {};
     }

@@ -3,6 +3,7 @@ import path from "path";
 
 import type { IgnorePipeline, Pipeline } from "../../pipelines";
 import {
+  ClonePipeline,
   GroupPipeline,
   InteractivePipeline,
   QueryPipeline,
@@ -276,6 +277,44 @@ export class PipelineExecutor {
 
     signal.throwIfAborted();
 
+    if (ClonePipeline.is(parent)) {
+      await this.computeResult(parent.source, signal);
+
+      const source = parent.source;
+      const sliced =
+        (QueryPipeline.is(source) || ClonePipeline.is(source)) &&
+        source.slices !== undefined;
+
+      if (sliced) {
+        parent.slices = await Promise.all(
+          source.slices!.map(async (src) => {
+            const key = this.cache?.cloneSliceKey(parent, src.key);
+
+            if (!src.dirty && this.cache && key !== undefined) {
+              const cached = this.cache.readResult(key);
+              if (cached) {
+                return { key: src.key, output: cached, dirty: false };
+              }
+            }
+
+            const out = await this.executeCommands(parent, src.output, signal);
+            if (this.cache && key !== undefined) {
+              this.cache.writeResult(key, out);
+            }
+            return { key: src.key, output: out, dirty: src.dirty };
+          }),
+        );
+        parent.result = parent.slices.flatMap((s) => s.output);
+      } else {
+        const input = InteractivePipeline.is(source) ? source.result : [];
+        parent.result = await this.executeCommands(parent, input, signal);
+        this.cache?.writeResult(this.cache.pipelineKey(parent), parent.result);
+      }
+
+      resolve();
+      return parent.resultPromise;
+    }
+
     if (GroupPipeline.is(parent)) {
       const files: File[] = [];
 
@@ -298,30 +337,32 @@ export class PipelineExecutor {
     }
 
     if (QueryPipeline.is(parent) && parent.parallel) {
-      parent.result = [];
+      parent.slices = await Promise.all(
+        parent.filteredQueryResult.map(async (file) => {
+          const dirty = parent.activeCacheMisses.has(file.content);
+          const key = this.cache?.queryFileKey(parent, file);
 
-      for (const file of parent.filteredQueryResult) {
-        const cachedFiles =
-          this.cache &&
-          !parent.activeCacheMisses.has(file.content) &&
-          this.cache.readResult(this.cache.queryFileKey(parent, file));
+          if (!dirty && this.cache && key !== undefined) {
+            const cached = this.cache.readResult(key);
+            if (cached) {
+              return { key: file.content, output: cached, dirty: false };
+            }
+          }
 
-        if (cachedFiles) {
-          parent.result.push(...cachedFiles);
-        } else {
-          const files = await this.executeCommands(parent, [file], signal);
-          this.cache?.writeResult(this.cache.queryFileKey(parent, file), files);
-          parent.result.push(...files);
-        }
-      }
+          const out = await this.executeCommands(parent, [file], signal);
+          if (this.cache && key !== undefined) {
+            this.cache.writeResult(key, out);
+          }
+          return { key: file.content, output: out, dirty };
+        }),
+      );
+      parent.result = parent.slices.flatMap((s) => s.output);
 
       resolve();
       return parent.resultPromise;
     }
 
     if (QueryPipeline.is(parent) && parent.groupBy !== undefined) {
-      parent.result = [];
-
       const tagMap: Record<string, File[]> = {};
 
       for (const file of parent.filteredQueryResult) {
@@ -332,46 +373,46 @@ export class PipelineExecutor {
         tagMap[tag].push(file);
       }
 
-      for (const tag in tagMap) {
-        let noCacheMisses = true;
-
-        for (const file of tagMap[tag]) {
-          if (parent.activeCacheMisses.has(file.content)) {
-            noCacheMisses = false;
-            break;
+      parent.slices = await Promise.all(
+        Object.entries(tagMap).map(async ([tag, files]) => {
+          let noCacheMisses = true;
+          for (const file of files) {
+            if (parent.activeCacheMisses.has(file.content)) {
+              noCacheMisses = false;
+              break;
+            }
           }
-        }
 
-        const key = this.cache?.queryGroupKey(parent, tag);
-        const currentMembership = new Set(tagMap[tag].map((f) => f.content));
+          const key = this.cache?.queryGroupKey(parent, tag);
+          const currentMembership = new Set(files.map((f) => f.content));
 
-        let membershipUnchanged = false;
-        if (this.cache && key !== undefined) {
-          const previousMembership = this.cache.readGroupMembership(key);
-          membershipUnchanged =
-            previousMembership !== undefined &&
-            previousMembership.symmetricDifference(currentMembership).size ===
-              0;
-        }
-
-        const cachedFiles =
-          this.cache &&
-          key !== undefined &&
-          noCacheMisses &&
-          membershipUnchanged &&
-          this.cache.readResult(key);
-
-        if (cachedFiles) {
-          parent.result.push(...cachedFiles);
-        } else {
-          const files = await this.executeCommands(parent, tagMap[tag], signal);
+          let membershipUnchanged = false;
           if (this.cache && key !== undefined) {
-            this.cache.writeResult(key, files);
+            const previousMembership = this.cache.readGroupMembership(key);
+            membershipUnchanged =
+              previousMembership !== undefined &&
+              previousMembership.symmetricDifference(currentMembership)
+                .size === 0;
+          }
+
+          const dirty = !noCacheMisses || !membershipUnchanged;
+
+          if (!dirty && this.cache && key !== undefined) {
+            const cached = this.cache.readResult(key);
+            if (cached) {
+              return { key: tag, output: cached, dirty: false };
+            }
+          }
+
+          const out = await this.executeCommands(parent, files, signal);
+          if (this.cache && key !== undefined) {
+            this.cache.writeResult(key, out);
             this.cache.writeGroupMembership(key, currentMembership);
           }
-          parent.result.push(...files);
-        }
-      }
+          return { key: tag, output: out, dirty };
+        }),
+      );
+      parent.result = parent.slices.flatMap((s) => s.output);
 
       resolve();
       return parent.resultPromise;

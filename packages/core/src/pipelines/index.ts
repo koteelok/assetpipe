@@ -1,3 +1,4 @@
+export { ClonePipeline, type CloneOptions } from "./clone";
 export { ContextPipeline, type ContextOptions } from "./context";
 export { GroupPipeline, type GroupOptions } from "./group";
 export { IgnorePipeline, type IgnoreOptions } from "./ignore";
@@ -14,3 +15,4 @@ export {
   PipelineMixin,
 } from "./pipeline";
 export { QueryPipeline, type QueryOptions, type QueryState } from "./query";
+export { type Slice } from "./slice";

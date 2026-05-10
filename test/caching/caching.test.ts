@@ -10,13 +10,13 @@ describe("caching", () => {
   const cacheDir = resolve(__dirname, "cache");
   const outputDir = resolve(__dirname, "output");
   const entry = resolve(__dirname, "pipeline.ts");
-  const counterFile = resolve(__dirname, "counters.json");
+  const counterDir = resolve(__dirname, "counters");
 
   beforeEach(async () => {
     await rm(assetsDir, { recursive: true, force: true });
     await rm(cacheDir, { recursive: true, force: true });
     await rm(outputDir, { recursive: true, force: true });
-    await rm(counterFile, { force: true });
+    await rm(counterDir, { recursive: true, force: true });
     await mkdir(assetsDir, { recursive: true });
   });
 
@@ -24,7 +24,7 @@ describe("caching", () => {
     await rm(assetsDir, { recursive: true, force: true });
     await rm(cacheDir, { recursive: true, force: true });
     await rm(outputDir, { recursive: true, force: true });
-    await rm(counterFile, { force: true });
+    await rm(counterDir, { recursive: true, force: true });
 
     // reset pipeline content
     let content = await readFile(entry, "utf-8");
@@ -35,7 +35,15 @@ describe("caching", () => {
 
   async function getCallCounts() {
     try {
-      return JSON.parse(await readFile(counterFile, "utf-8"));
+      const files = await readdir(counterDir);
+      const result: Record<string, number> = {};
+      for (const f of files) {
+        const count = JSON.parse(
+          await readFile(resolve(counterDir, f), "utf-8"),
+        );
+        result[f.replace(".json", "")] = count;
+      }
+      return result;
     } catch {
       return {};
     }

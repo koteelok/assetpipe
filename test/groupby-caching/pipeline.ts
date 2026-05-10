@@ -1,21 +1,20 @@
 import { query, tmpfile } from "@assetpipe/config";
-import { readFile, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import { resolve } from "path";
 
 export default query("assets/**/*.txt", {
   groupBy: (file) => file.dirname,
 }).pipe(async (files) => {
-  const counterFile = resolve(__dirname, "counters.json");
-  let counts: Record<string, number> = {};
-  try {
-    counts = JSON.parse(await readFile(counterFile, "utf-8"));
-  } catch {
-    counts = {};
-  }
-
   const tag = files[0].dirname;
-  counts[tag] = (counts[tag] ?? 0) + 1;
-  await writeFile(counterFile, JSON.stringify(counts));
+  const counterDir = resolve(__dirname, "counters");
+  await mkdir(counterDir, { recursive: true });
+  const counterFile = resolve(counterDir, tag + ".json");
+  let count = 0;
+  try {
+    count = JSON.parse(await readFile(counterFile, "utf-8"));
+  } catch {}
+  count++;
+  await writeFile(counterFile, JSON.stringify(count));
 
   const texts = await Promise.all(
     files.map((f) => readFile(f.content, "utf-8")),

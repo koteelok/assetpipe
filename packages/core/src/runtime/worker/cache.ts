@@ -555,4 +555,8 @@ export class PipelineCacheManager {
   queryFileKey(pipeline: Pipeline, file: File) {
     return pipeline.id + "$" + file.content;
   }
+
+  cloneSliceKey(pipeline: Pipeline, sliceKey: string) {
+    return pipeline.id + "%" + sliceKey;
+  }
 }

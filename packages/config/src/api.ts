@@ -46,7 +46,23 @@ class InteractivePipeline {
 
     return this;
   }
+
+  /**
+   * Create a clone that reuses this pipeline's output as input.
+   * If the source produces sliced output (`parallel` / `groupBy`),
+   * the clone preserves per-slice fanout for any commands appended to it.
+   */
+  clone() {
+    const cloned = new ClonePipeline();
+    const self = cloned as unknown as mixins.CloneOptions;
+    self.kind = "ClonePipeline";
+    self.source = this as unknown as mixins.PipelineOptions;
+    self.commands = [];
+    return cloned;
+  }
 }
+
+class ClonePipeline extends InteractivePipeline {}
 export type QueryLike = string | string[];
 
 class QueryPipeline extends InteractivePipeline {}
