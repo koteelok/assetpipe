@@ -16,6 +16,9 @@
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
     },
+    "git": {
+      "commitMessage": "Release {version}"
+    },
     "changelog": {
       "workspaceChangelog": {
         "file": "{workspaceRoot}/CHANGELOG.md"
