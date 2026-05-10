@@ -1,6 +1,6 @@
 {
   "name": "@assetpipe/vite",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "author": "",
   "license": "Apache-2.0",
   "description": "Vite integration for AssetPipe",
@@ -24,7 +24,7 @@
     "dev": "tsdown --watch"
   },
   "dependencies": {
-    "@assetpipe/core": "^0.1.0",
+    "@assetpipe/core": "^0.3.0",
     "sirv": "^3.0.0"
   },
   "devDependencies": {
