@@ -3,28 +3,56 @@ import { parse, Visitor } from "oxc-parser";
 import { ResolverFactory } from "oxc-resolver";
 import path from "path";
 
+const RESOLVER_EXTENSIONS = [
+  ".ts",
+  ".tsx",
+  ".mts",
+  ".cts",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".json",
+];
+
+const NODE_MODULES_SEGMENT = `${path.sep}node_modules${path.sep}`;
+
 let specifiers!: string[];
+
+function addSpecifier(value: string) {
+  if (!specifiers.includes(value)) {
+    specifiers.push(value);
+  }
+}
 
 const visitor = new Visitor({
   CallExpression: (node) => {
     if (
       node.callee.type === "Identifier" &&
       node.callee.name === "require" &&
-      node.arguments[0].type === "Literal" &&
+      node.arguments[0]?.type === "Literal" &&
       typeof node.arguments[0].value === "string"
     ) {
-      const value = node.arguments[0].value;
-      if (!specifiers.includes(value)) {
-        specifiers.push(value);
-      }
+      addSpecifier(node.arguments[0].value);
+    }
+  },
+
+  ImportExpression: (node) => {
+    if (node.source.type === "Literal" && typeof node.source.value === "string") {
+      addSpecifier(node.source.value);
     }
   },
 
   ImportDeclaration: (node) => {
-    const value = node.source.value;
-    if (!specifiers.includes(value)) {
-      specifiers.push(value);
-    }
+    addSpecifier(node.source.value);
+  },
+
+  ExportNamedDeclaration: (node) => {
+    if (node.source) addSpecifier(node.source.value);
+  },
+
+  ExportAllDeclaration: (node) => {
+    if (node.source) addSpecifier(node.source.value);
   },
 });
 
@@ -45,7 +73,7 @@ async function parseImports(
   for (const specifier of specifiers) {
     const result = await resolver.resolveFileAsync(filename, specifier);
 
-    if (result.path) {
+    if (result.path && !result.path.includes(NODE_MODULES_SEGMENT)) {
       await parseImports(resolver, result.path, resolved);
     }
   }
@@ -54,7 +82,7 @@ async function parseImports(
 export async function parseImportsDeep(filename: string) {
   const resolved = new Set<string>();
   await parseImports(
-    ResolverFactory.default(),
+    new ResolverFactory({ extensions: RESOLVER_EXTENSIONS }),
     path.resolve(filename),
     resolved,
   );

@@ -142,6 +142,7 @@ export class PipelineState {
       fsCache: options.cacheDirectory
         ? path.join(options.cacheDirectory, "jiti")
         : false,
+      moduleCache: false,
     });
 
     const loaded = await jiti.import<PipelineOptions>(

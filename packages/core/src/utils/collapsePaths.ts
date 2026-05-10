@@ -1,21 +1,26 @@
 import path from "path";
 
+function isInside(child: string, parent: string): boolean {
+  if (child === parent) return true;
+  if (!child.startsWith(parent)) return false;
+  return child[parent.length] === path.sep;
+}
+
 export function collapsePaths(files: Iterable<string>): string[] {
-  const collapsed = [];
+  const collapsed: string[] = [];
 
   filesLoop: for (const file of files) {
     const fileDirname = path.dirname(file);
 
     for (let i = 0; i < collapsed.length; i++) {
-      const collapsedDir: string = collapsed[i];
-
-      if (collapsedDir.startsWith(fileDirname)) {
+      if (isInside(fileDirname, collapsed[i])) {
         continue filesLoop;
       }
+    }
 
-      if (fileDirname.startsWith(collapsedDir)) {
-        collapsed[i] = fileDirname;
-        continue filesLoop;
+    for (let i = collapsed.length - 1; i >= 0; i--) {
+      if (isInside(collapsed[i], fileDirname)) {
+        collapsed.splice(i, 1);
       }
     }
 
