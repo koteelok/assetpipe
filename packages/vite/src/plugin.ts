@@ -227,6 +227,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
         return {
           code: `export default import.meta.ROLLUP_FILE_URL_${refId};`,
           meta: { assetpipe: true },
+          moduleType: "js",
         };
       }
 
