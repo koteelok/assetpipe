@@ -4,6 +4,11 @@
   "author": "",
   "license": "Apache-2.0",
   "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koteelok/assetpipe.git",
+    "directory": "packages/cli"
+  },
   "bin": {
     "assetpipe": "./assetpipe"
   },

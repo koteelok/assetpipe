@@ -4,6 +4,11 @@
   "author": "",
   "license": "Apache-2.0",
   "description": "Image-processing transformers for AssetPipe",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koteelok/assetpipe.git",
+    "directory": "packages/image"
+  },
   "main": "./dist/exports.js",
   "module": "./dist/exports.mjs",
   "types": "./dist/exports.d.ts",
