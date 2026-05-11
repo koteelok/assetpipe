@@ -3,7 +3,7 @@ import { File } from "@assetpipe/core/types";
 import { mkdir, readFile, rm, unlink, writeFile } from "fs/promises";
 import { join, resolve } from "path";
 import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
-import { waitForCalls } from "../utils";
+import { waitForCalls } from "../../utils";
 
 describe("watcher mode", () => {
   const entry = resolve(__dirname, "pipeline.ts");

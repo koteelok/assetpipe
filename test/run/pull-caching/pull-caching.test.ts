@@ -3,7 +3,7 @@ import { ExecutionMetadata, run } from "@assetpipe/core/runtime";
 import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import { resolve } from "path";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
-import { waitForCalls } from "../utils";
+import { waitForCalls } from "../../utils";
 
 describe("pull-caching", () => {
   const assetsDir = resolve(__dirname, "assets");

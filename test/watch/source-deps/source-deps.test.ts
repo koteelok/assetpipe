@@ -3,7 +3,7 @@ import type { File } from "@assetpipe/core/types";
 import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import { resolve } from "path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { waitForCalls } from "../utils";
+import { waitForCalls } from "../../utils";
 
 describe("source-code dependency watching", () => {
   const root = resolve(__dirname, "fixture");
@@ -74,7 +74,7 @@ export default query(ASSETS).pipe(async (files) => {
     } finally {
       await watcher.despawn();
     }
-  }, 30_000);
+  });
 
   test("modifying the entry file re-runs the pipeline", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
@@ -97,7 +97,7 @@ export default query(ASSETS).pipe(async (files) => {
     } finally {
       await watcher.despawn();
     }
-  }, 30_000);
+  });
 });
 
 describe("source-code dependency watching (deep chain)", () => {
@@ -184,7 +184,7 @@ export default query(ASSETS).pipe(async (files) => {
     } finally {
       await watcher.despawn();
     }
-  }, 30_000);
+  });
 
   test("modifying a mid-chain re-export re-runs the pipeline", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
@@ -212,7 +212,7 @@ export default query(ASSETS).pipe(async (files) => {
     } finally {
       await watcher.despawn();
     }
-  }, 30_000);
+  });
 
   test("modifying the top dep (used via dynamic import) re-runs the pipeline", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
@@ -240,5 +240,5 @@ export default query(ASSETS).pipe(async (files) => {
     } finally {
       await watcher.despawn();
     }
-  }, 30_000);
+  });
 });
