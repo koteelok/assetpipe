@@ -52,17 +52,38 @@ class InteractivePipeline {
    * If the source produces sliced output (`parallel` / `groupBy`),
    * the clone preserves per-slice fanout for any commands appended to it.
    */
-  clone() {
-    const cloned = new ClonePipeline();
-    const self = cloned as unknown as mixins.CloneOptions;
-    self.kind = "ClonePipeline";
-    self.source = this as unknown as mixins.PipelineOptions;
-    self.commands = [];
+  clone(): InteractivePipeline {
+    const sourceSelf = this as unknown as mixins.InteractiveOptions;
+
+    let cloned: InteractivePipeline;
+    if (this instanceof ContextPipeline) {
+      cloned = new ContextPipeline();
+      const opts = cloned as unknown as mixins.ContextOptions;
+      opts.kind = "ContextPipeline";
+      opts.context = "";
+      opts.children = [];
+    } else if (this instanceof GroupPipeline) {
+      cloned = new GroupPipeline();
+      const opts = cloned as unknown as mixins.GroupOptions;
+      opts.kind = "GroupPipeline";
+      opts.children = [];
+    } else if (this instanceof QueryPipeline) {
+      cloned = new QueryPipeline();
+      const opts = cloned as unknown as mixins.QueryOptions;
+      opts.kind = "QueryPipeline";
+      opts.query = [];
+    } else {
+      throw new Error("clone is only supported on query/group/context pipelines");
+    }
+
+    const opts = cloned as unknown as mixins.InteractiveOptions;
+    opts.commands = [];
+    opts.source = sourceSelf as unknown as mixins.PipelineOptions;
+
     return cloned;
   }
 }
 
-class ClonePipeline extends InteractivePipeline {}
 export type QueryLike = string | string[];
 
 class QueryPipeline extends InteractivePipeline {}

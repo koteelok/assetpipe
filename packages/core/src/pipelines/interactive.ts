@@ -9,6 +9,7 @@ export type CommandOptions =
 
 export interface InteractiveOptions extends PipelineOptions {
   commands: CommandOptions[];
+  source?: PipelineOptions;
 }
 
 export type PipelineCommand =
@@ -18,6 +19,7 @@ export type PipelineCommand =
 
 export interface InteractivePipeline extends Pipeline {
   commands: PipelineCommand[];
+  source?: Pipeline;
   cacheHit: boolean;
   firstDirtyPull: number | undefined;
   result: File[];
@@ -34,6 +36,7 @@ export const InteractivePipeline = new PipelineMixin<
     }
     return cmd;
   });
+  pipeline.source = options.source ? materialize(options.source) : undefined;
   pipeline.cacheHit = false;
   pipeline.firstDirtyPull = undefined;
   pipeline.result = [];

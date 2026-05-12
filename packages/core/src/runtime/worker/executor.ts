@@ -3,7 +3,6 @@ import path from "path";
 
 import type { IgnorePipeline, Pipeline } from "../../pipelines";
 import {
-  ClonePipeline,
   GroupPipeline,
   InteractivePipeline,
   QueryPipeline,
@@ -244,7 +243,11 @@ export class PipelineExecutor {
     );
 
     if (this.cache && parent.cacheHit) {
-      if (parent.firstDirtyPull !== undefined) {
+      const isSlicedQuery =
+        QueryPipeline.is(parent) &&
+        (parent.parallel || parent.groupBy !== undefined);
+
+      if (parent.firstDirtyPull !== undefined && !isSlicedQuery) {
         const cachedFiles = this.cache.readResult(
           this.cache.beforePullKey(parent, parent.firstDirtyPull),
         );
@@ -262,7 +265,7 @@ export class PipelineExecutor {
           resolve();
           return parent.resultPromise;
         }
-      } else {
+      } else if (parent.firstDirtyPull === undefined) {
         const cachedFiles = this.cache.readResult(
           this.cache.pipelineKey(parent),
         );
@@ -277,45 +280,21 @@ export class PipelineExecutor {
 
     signal.throwIfAborted();
 
-    if (ClonePipeline.is(parent)) {
-      await this.computeResult(parent.source, signal);
+    if (GroupPipeline.is(parent)) {
+      if (parent.source) {
+        await this.computeResult(parent.source, signal);
+        const input = InteractivePipeline.is(parent.source)
+          ? parent.source.result
+          : [];
 
-      const source = parent.source;
-      const sliced =
-        (QueryPipeline.is(source) || ClonePipeline.is(source)) &&
-        source.slices !== undefined;
-
-      if (sliced) {
-        parent.slices = await Promise.all(
-          source.slices!.map(async (src) => {
-            const key = this.cache?.cloneSliceKey(parent, src.key);
-
-            if (!src.dirty && this.cache && key !== undefined) {
-              const cached = this.cache.readResult(key);
-              if (cached) {
-                return { key: src.key, output: cached, dirty: false };
-              }
-            }
-
-            const out = await this.executeCommands(parent, src.output, signal);
-            if (this.cache && key !== undefined) {
-              this.cache.writeResult(key, out);
-            }
-            return { key: src.key, output: out, dirty: src.dirty };
-          }),
-        );
-        parent.result = parent.slices.flatMap((s) => s.output);
-      } else {
-        const input = InteractivePipeline.is(source) ? source.result : [];
         parent.result = await this.executeCommands(parent, input, signal);
+
         this.cache?.writeResult(this.cache.pipelineKey(parent), parent.result);
+
+        resolve();
+        return parent.resultPromise;
       }
 
-      resolve();
-      return parent.resultPromise;
-    }
-
-    if (GroupPipeline.is(parent)) {
       const files: File[] = [];
 
       await Promise.all(
@@ -336,10 +315,57 @@ export class PipelineExecutor {
       return parent.resultPromise;
     }
 
+    if (QueryPipeline.is(parent) && parent.source) {
+      await this.computeResult(parent.source, signal);
+      const source = parent.source;
+      const sourceHasSlices =
+        QueryPipeline.is(source) && source.slices !== undefined;
+
+      if (sourceHasSlices) {
+        const pullDirty = parent.firstDirtyPull !== undefined;
+        parent.slices = await Promise.all(
+          source.slices!.map(async (src) => {
+            const key = this.cache?.cloneSliceKey(parent, src.key);
+            const dirty = src.dirty || pullDirty;
+
+            if (!dirty && this.cache && key !== undefined) {
+              const cached = this.cache.readResult(key);
+              if (cached) {
+                return { key: src.key, output: cached, dirty: false };
+              }
+            }
+
+            const out = await this.executeSliceCommands(
+              parent,
+              src.key,
+              src.output,
+              src.dirty,
+              signal,
+            );
+
+            if (this.cache && key !== undefined) {
+              this.cache.writeResult(key, out);
+            }
+            return { key: src.key, output: out, dirty };
+          }),
+        );
+        parent.result = parent.slices.flatMap((s) => s.output);
+      } else {
+        const input = InteractivePipeline.is(source) ? source.result : [];
+        parent.result = await this.executeCommands(parent, input, signal);
+        this.cache?.writeResult(this.cache.pipelineKey(parent), parent.result);
+      }
+
+      resolve();
+      return parent.resultPromise;
+    }
+
     if (QueryPipeline.is(parent) && parent.parallel) {
+      const pullDirty = parent.firstDirtyPull !== undefined;
       parent.slices = await Promise.all(
         parent.filteredQueryResult.map(async (file) => {
-          const dirty = parent.activeCacheMisses.has(file.content);
+          const inputDirty = parent.activeCacheMisses.has(file.content);
+          const dirty = inputDirty || pullDirty;
           const key = this.cache?.queryFileKey(parent, file);
 
           if (!dirty && this.cache && key !== undefined) {
@@ -349,7 +375,14 @@ export class PipelineExecutor {
             }
           }
 
-          const out = await this.executeCommands(parent, [file], signal);
+          const out = await this.executeSliceCommands(
+            parent,
+            file.content,
+            [file],
+            inputDirty,
+            signal,
+          );
+
           if (this.cache && key !== undefined) {
             this.cache.writeResult(key, out);
           }
@@ -373,6 +406,8 @@ export class PipelineExecutor {
         tagMap[tag].push(file);
       }
 
+      const pullDirty = parent.firstDirtyPull !== undefined;
+
       parent.slices = await Promise.all(
         Object.entries(tagMap).map(async ([tag, files]) => {
           let noCacheMisses = true;
@@ -391,11 +426,12 @@ export class PipelineExecutor {
             const previousMembership = this.cache.readGroupMembership(key);
             membershipUnchanged =
               previousMembership !== undefined &&
-              previousMembership.symmetricDifference(currentMembership)
-                .size === 0;
+              previousMembership.symmetricDifference(currentMembership).size ===
+                0;
           }
 
-          const dirty = !noCacheMisses || !membershipUnchanged;
+          const ownDirty = !noCacheMisses || !membershipUnchanged;
+          const dirty = ownDirty || pullDirty;
 
           if (!dirty && this.cache && key !== undefined) {
             const cached = this.cache.readResult(key);
@@ -404,7 +440,14 @@ export class PipelineExecutor {
             }
           }
 
-          const out = await this.executeCommands(parent, files, signal);
+          const out = await this.executeSliceCommands(
+            parent,
+            tag,
+            files,
+            ownDirty,
+            signal,
+          );
+
           if (this.cache && key !== undefined) {
             this.cache.writeResult(key, out);
             this.cache.writeGroupMembership(key, currentMembership);
@@ -432,11 +475,36 @@ export class PipelineExecutor {
     }
   }
 
+  private async executeSliceCommands(
+    parent: InteractivePipeline,
+    sliceKey: string,
+    fullInput: File[],
+    inputDirty: boolean,
+    signal: AbortSignal,
+  ): Promise<File[]> {
+    if (!inputDirty && parent.firstDirtyPull !== undefined && this.cache) {
+      const prePullCached = this.cache.readResult(
+        this.cache.beforePullSliceKey(parent, parent.firstDirtyPull, sliceKey),
+      );
+      if (prePullCached) {
+        return this.executeCommands(
+          parent,
+          prePullCached,
+          signal,
+          parent.firstDirtyPull,
+          sliceKey,
+        );
+      }
+    }
+    return this.executeCommands(parent, fullInput, signal, 0, sliceKey);
+  }
+
   private async executeCommands(
     parent: InteractivePipeline,
     inputs: File[],
     signal: AbortSignal,
     startIndex: number = 0,
+    sliceKey?: string,
   ) {
     let output = inputs;
 
@@ -459,7 +527,19 @@ export class PipelineExecutor {
           break;
 
         case "pull":
-          this.cache?.writeResult(this.cache.beforePullKey(parent, i), output);
+          if (this.cache) {
+            if (sliceKey !== undefined) {
+              this.cache.writeResult(
+                this.cache.beforePullSliceKey(parent, i, sliceKey),
+                output,
+              );
+            } else {
+              this.cache.writeResult(
+                this.cache.beforePullKey(parent, i),
+                output,
+              );
+            }
+          }
 
           var pulls: Pipeline[] = [command.pipeline];
 

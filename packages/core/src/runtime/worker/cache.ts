@@ -255,10 +255,7 @@ export class PipelineCacheManager {
 
           switch (state.kind) {
             case "file": {
-              const filePath = path.resolve(
-                this.options.queryBase,
-                state.base,
-              );
+              const filePath = path.resolve(this.options.queryBase, state.base);
               const fileDirname = path.dirname(filePath);
               const fileBasename = path.basename(filePath);
 
@@ -377,22 +374,47 @@ export class PipelineCacheManager {
 
   async waterfallCacheHits(parent: Pipeline) {
     if (GroupPipeline.is(parent)) {
-      parent.cacheHit = true;
-
-      for (const child of parent.children) {
-        this.waterfallCacheHits(child);
-
+      if (parent.source) {
+        this.waterfallCacheHits(parent.source);
+        parent.cacheHit = true;
         if (
-          InteractivePipeline.is(child) &&
-          (!child.cacheHit || child.firstDirtyPull !== undefined)
+          InteractivePipeline.is(parent.source) &&
+          (!parent.source.cacheHit ||
+            parent.source.firstDirtyPull !== undefined)
         ) {
           parent.cacheHit = false;
+        }
+      } else {
+        parent.cacheHit = true;
+
+        for (const child of parent.children) {
+          this.waterfallCacheHits(child);
+
+          if (
+            InteractivePipeline.is(child) &&
+            (!child.cacheHit || child.firstDirtyPull !== undefined)
+          ) {
+            parent.cacheHit = false;
+          }
         }
       }
     }
 
     if (QueryPipeline.is(parent)) {
-      parent.cacheHit = parent.cacheHit || parent.activeCacheMisses.size === 0;
+      if (parent.source) {
+        this.waterfallCacheHits(parent.source);
+        parent.cacheHit = true;
+        if (
+          InteractivePipeline.is(parent.source) &&
+          (!parent.source.cacheHit ||
+            parent.source.firstDirtyPull !== undefined)
+        ) {
+          parent.cacheHit = false;
+        }
+      } else {
+        parent.cacheHit =
+          parent.cacheHit || parent.activeCacheMisses.size === 0;
+      }
     }
 
     if (InteractivePipeline.is(parent)) {
@@ -558,5 +580,13 @@ export class PipelineCacheManager {
 
   cloneSliceKey(pipeline: Pipeline, sliceKey: string) {
     return pipeline.id + "%" + sliceKey;
+  }
+
+  beforePullSliceKey(
+    pipeline: Pipeline,
+    commandIndex: number,
+    sliceKey: string,
+  ) {
+    return pipeline.id + "#" + commandIndex + "@" + sliceKey;
   }
 }

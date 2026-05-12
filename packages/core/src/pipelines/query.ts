@@ -4,7 +4,6 @@ import type { File } from "../types";
 import type { InteractiveOptions } from "./interactive";
 import { InteractivePipeline } from "./interactive";
 import { PipelineMixin } from "./pipeline";
-import type { Slice } from "./slice";
 
 export type QueryState =
   | { kind: "file"; base: string }
@@ -17,6 +16,12 @@ export interface QueryOptions extends InteractiveOptions {
   parallel?: boolean;
   groupBy?: (file: File) => string;
 }
+
+export type Slice = {
+  key: string;
+  output: File[];
+  dirty: boolean;
+};
 
 export interface QueryPipeline extends InteractivePipeline {
   query: string[];
