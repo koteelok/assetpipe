@@ -1,19 +1,19 @@
 import { assetpipe } from "@assetpipe/vite";
 import type { ExecutionMetadata } from "@assetpipe/core/runtime";
 import type { File as PipelineFile } from "@assetpipe/core/types";
-import { mkdir, readdir, readFile, rm, writeFile } from "fs/promises";
+import { mkdir, rm, writeFile } from "fs/promises";
 import { resolve } from "path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { build, createServer, type ViteDevServer } from "vite";
+import { createServer, type ViteDevServer } from "vite";
 import { waitForCalls } from "../../utils";
 
-describe("vite integration", () => {
+describe("vite dev server", () => {
   const root = __dirname;
-  const fixtureDir = resolve(root, "fixture");
+  const srcDir = resolve(root, "src");
   const assetsDir = resolve(root, "assets");
   const outputDir = resolve(root, "output");
   const cacheDir = resolve(root, "cache");
-  const buildOut = resolve(root, "dist");
+  const viteCacheDir = resolve(cacheDir, "vite");
   const entry = resolve(root, "pipeline.ts");
 
   const cleanup = () =>
@@ -21,7 +21,6 @@ describe("vite integration", () => {
       rm(assetsDir, { recursive: true, force: true }),
       rm(outputDir, { recursive: true, force: true }),
       rm(cacheDir, { recursive: true, force: true }),
-      rm(buildOut, { recursive: true, force: true }),
     ]);
 
   beforeEach(async () => {
@@ -34,104 +33,10 @@ describe("vite integration", () => {
     await cleanup();
   });
 
-  test("SPA build emits pipeline assets and the bundle references them", async () => {
-    await build({
-      root: fixtureDir,
-      logLevel: "warn",
-      configFile: false,
-      build: {
-        outDir: buildOut,
-        emptyOutDir: true,
-        write: true,
-        rollupOptions: {
-          input: resolve(fixtureDir, "index.html"),
-        },
-      },
-      plugins: [
-        assetpipe({
-          entry,
-          outputDirectory: outputDir,
-          cacheDirectory: cacheDir,
-        }),
-      ],
-    });
-
-    const files = (await readdir(buildOut, { recursive: true })).map((f) =>
-      String(f).replace(/\\/g, "/"),
-    );
-    expect(files).toContain("index.html");
-
-    const html = await readFile(resolve(buildOut, "index.html"), "utf-8");
-    const scriptMatch = html.match(/src="([^"]+\.js)"/);
-    expect(
-      scriptMatch,
-      "html should reference the entry script",
-    ).not.toBeNull();
-    const bundlePath = scriptMatch![1].replace(/^\//, "");
-    const bundle = await readFile(resolve(buildOut, bundlePath), "utf-8");
-
-    // The pipeline asset should be emitted into the build output and the
-    // bundle should reference it — i.e. the ROLLUP_FILE_URL_* placeholder
-    // must be substituted with the final asset URL, not left in the bundle
-    // as a literal string.
-    const emittedAsset = files.find(
-      (f) => f.startsWith("assets/") && !f.endsWith(".js"),
-    );
-    expect(emittedAsset, "pipeline asset should be emitted").toBeDefined();
-    expect(await readFile(resolve(buildOut, emittedAsset!), "utf-8")).toBe(
-      "hello world",
-    );
-
-    expect(
-      bundle,
-      "bundle should not contain unresolved ROLLUP_FILE_URL_ placeholders",
-    ).not.toMatch(/ROLLUP_FILE_URL_/);
-
-    // The bundle should reference the emitted asset's basename.
-    const emittedBasename = emittedAsset!.split("/").pop()!;
-    expect(bundle).toContain(emittedBasename);
-  });
-
-  test("SPA build inlines ?raw imports as strings", async () => {
-    await build({
-      root: fixtureDir,
-      logLevel: "warn",
-      configFile: false,
-      build: {
-        outDir: buildOut,
-        emptyOutDir: true,
-        write: true,
-        rollupOptions: {
-          input: resolve(fixtureDir, "raw.html"),
-        },
-      },
-      plugins: [
-        assetpipe({
-          entry,
-          outputDirectory: outputDir,
-          cacheDirectory: cacheDir,
-        }),
-      ],
-    });
-
-    const html = await readFile(resolve(buildOut, "raw.html"), "utf-8");
-    const scriptMatch = html.match(/src="([^"]+\.js)"/);
-    expect(scriptMatch).not.toBeNull();
-    const bundlePath = scriptMatch![1].replace(/^\//, "");
-    const bundle = await readFile(resolve(buildOut, bundlePath), "utf-8");
-    expect(bundle).toContain("hello world");
-
-    // ?raw should not emit a separate asset file
-    const allFiles = await readdir(buildOut, { recursive: true });
-    const txtAssets = allFiles.filter(
-      (f) => typeof f === "string" && f.endsWith(".txt"),
-    );
-    expect(txtAssets).toHaveLength(0);
-  });
-
-  test("dev server resolves imports to dev URLs and serves outputs over HTTP", async () => {
+  test("resolves imports to dev URLs and serves outputs over HTTP", async () => {
     const server = await createServer({
-      root: fixtureDir,
+      root: srcDir,
+      cacheDir: viteCacheDir,
       logLevel: "warn",
       configFile: false,
       server: { port: 0, host: "127.0.0.1" },
@@ -148,7 +53,7 @@ describe("vite integration", () => {
       await server.listen();
 
       const result = await server.transformRequest(
-        resolve(fixtureDir, "main.js"),
+        resolve(srcDir, "main.js"),
       );
       expect(result, "main.js should be transformable").not.toBeNull();
       // The plugin's load() in dev mode returns `export default "<url>?t=<ts>"`
@@ -168,7 +73,7 @@ describe("vite integration", () => {
     }
   });
 
-  test("dev server invokes handleReload when an input asset changes", async () => {
+  test("invokes handleReload when an input asset changes", async () => {
     const handleReload =
       vi.fn<
         (opts: {
@@ -179,7 +84,8 @@ describe("vite integration", () => {
       >();
 
     const server = await createServer({
-      root: fixtureDir,
+      root: srcDir,
+      cacheDir: viteCacheDir,
       logLevel: "warn",
       configFile: false,
       server: { port: 0, host: "127.0.0.1" },
@@ -198,7 +104,7 @@ describe("vite integration", () => {
 
       // Force the plugin to wait for the first pipeline run by resolving
       // an import. The first run does NOT trigger handleReload.
-      await server.transformRequest(resolve(fixtureDir, "main.js"));
+      await server.transformRequest(resolve(srcDir, "main.js"));
       expect(handleReload).not.toHaveBeenCalled();
 
       await writeFile(resolve(assetsDir, "hello.txt"), "hello again");
@@ -219,7 +125,8 @@ describe("vite integration", () => {
 
   test("custom prefix scopes which imports the plugin claims", async () => {
     const server = await createServer({
-      root: fixtureDir,
+      root: srcDir,
+      cacheDir: viteCacheDir,
       logLevel: "warn",
       configFile: false,
       server: { port: 0, host: "127.0.0.1" },
@@ -238,7 +145,7 @@ describe("vite integration", () => {
 
       // /@asset/hello.txt should resolve via the plugin
       const prefixed = await server.transformRequest(
-        resolve(fixtureDir, "prefixed.js"),
+        resolve(srcDir, "prefixed.js"),
       );
       expect(prefixed).not.toBeNull();
 
@@ -250,7 +157,7 @@ describe("vite integration", () => {
       // claimed by the plugin — Vite will fail to resolve it, so the
       // transform of main.js should reject.
       await expect(
-        server.transformRequest(resolve(fixtureDir, "main.js")),
+        server.transformRequest(resolve(srcDir, "main.js")),
       ).rejects.toThrow();
     } finally {
       await server.close();
