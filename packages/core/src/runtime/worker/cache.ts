@@ -58,7 +58,7 @@ class ExecutionCache {
 }
 
 export class PipelineCacheManager {
-  private CACHE_VERSION = 1;
+  private CACHE_VERSION = 2;
   private resulsCacheBackup = new ExecutionCache();
   private resulsCache = new ExecutionCache();
   private invalidated = false;
@@ -523,7 +523,7 @@ export class PipelineCacheManager {
     this.resulsCache.results[id] = cloneFiles(files);
   }
 
-  readGroupMembership(id: string): Set<string> | undefined {
+  readSliceMembership(id: string): Set<string> | undefined {
     const live = this.resulsCache.groupMembership[id];
     if (live) return new Set(live);
     if (!this.invalidated) {
@@ -536,16 +536,12 @@ export class PipelineCacheManager {
     return undefined;
   }
 
-  writeGroupMembership(id: string, members: Set<string>) {
+  writeSliceMembership(id: string, members: Set<string>) {
     this.resulsCache.groupMembership[id] = Array.from(members);
   }
 
   pipelineKey(pipeline: Pipeline) {
     return pipeline.id.toString();
-  }
-
-  beforePullKey(pipeline: Pipeline, commandIndex: number) {
-    return pipeline.id + "#" + commandIndex;
   }
 
   queryGroupKey(pipeline: Pipeline, tag: string) {
@@ -558,5 +554,43 @@ export class PipelineCacheManager {
 
   cloneSliceKey(pipeline: Pipeline, sliceKey: string) {
     return pipeline.id + "%" + sliceKey;
+  }
+
+  readBeforePull(baseKey: string, commandIndex: number): File[] | undefined {
+    return this.readResult(baseKey + "?" + commandIndex);
+  }
+
+  writeBeforePull(baseKey: string, commandIndex: number, files: File[]) {
+    this.writeResult(baseKey + "?" + commandIndex, files);
+  }
+
+  filesMembershipChanged(baseKey: string, files: File[]): boolean {
+    const next = new Set(files.map((f) => "f:" + f.content));
+    const prev = this.readSliceMembership(baseKey + "&");
+    return prev === undefined || prev.symmetricDifference(next).size !== 0;
+  }
+
+  writeFilesMembership(baseKey: string, files: File[]) {
+    const next = new Set(files.map((f) => "f:" + f.content));
+    this.writeSliceMembership(baseKey + "&", next);
+  }
+
+  pullMembershipChanged(
+    baseKey: string,
+    commandIndex: number,
+    keys: string[],
+  ): boolean {
+    const next = new Set(keys.map((k) => "p:" + k));
+    const prev = this.readSliceMembership(baseKey + "&" + commandIndex);
+    return prev === undefined || prev.symmetricDifference(next).size !== 0;
+  }
+
+  writePullMembership(
+    baseKey: string,
+    commandIndex: number,
+    keys: string[],
+  ) {
+    const next = new Set(keys.map((k) => "p:" + k));
+    this.writeSliceMembership(baseKey + "&" + commandIndex, next);
   }
 }

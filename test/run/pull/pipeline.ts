@@ -23,7 +23,8 @@ const jsonPipeline = query("assets/json/*.json", { parallel: true })
   });
 
 export default query("assets/txt/*.txt")
-  .pull(txtPipeline, jsonPipeline)
+  .pull(txtPipeline)
+  .pull(jsonPipeline)
   .pipe(async (files) => {
     const basenames = files
       .map((f) => f.basename)

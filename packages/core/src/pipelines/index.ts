@@ -7,6 +7,7 @@ export {
   type InteractiveOptions,
   type CommandOptions,
   type PipelineCommand,
+  type PullMatcher,
 } from "./interactive";
 export {
   type Pipeline,

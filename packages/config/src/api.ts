@@ -28,21 +28,23 @@ class InteractivePipeline {
     return this;
   }
 
-  /** Pull results from other pipelines into this one. */
-  pull(...pipelines: InteractivePipeline[]) {
-    const self = this as unknown as mixins.InteractiveOptions;
-    for (const pipeline of pipelines) {
-      if (!(pipeline instanceof InteractivePipeline)) {
-        throw new Error(
-          `Passed argument ${pipeline} is not actually a pipeline!`,
-        );
-      }
-
-      self.commands.push({
-        type: "pull",
-        pipeline: pipeline as unknown as mixins.PipelineOptions,
-      });
+  /** Pull results from another pipeline into this one. */
+  pull(
+    pipeline: InteractivePipeline,
+    options: { match?: (sourceSlice: File[], pullSlice: File[]) => boolean } = {},
+  ): this {
+    if (!(pipeline instanceof InteractivePipeline)) {
+      throw new Error(
+        `Passed argument ${pipeline} is not actually a pipeline!`,
+      );
     }
+
+    const self = this as unknown as mixins.InteractiveOptions;
+    self.commands.push({
+      type: "pull",
+      pipeline: pipeline as unknown as mixins.PipelineOptions,
+      match: options.match,
+    });
 
     return this;
   }
