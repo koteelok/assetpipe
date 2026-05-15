@@ -75,13 +75,25 @@ export interface AssetpipePluginOptions {
   /**
    * Custom function to resolve module imports.
    *
-   * Return an ES module string to override how a specific import is loaded.
+   * Return an object with the resolved module `id` and its `source` (ES module
+   * string) to override how a specific import is loaded.
    * Return `undefined` to fall through to the default behavior.
    */
   resolveImport?: (options: {
     config: ResolvedConfig;
     id: string;
-  }) => string | undefined;
+    files: readonly File[];
+  }) => { id: string; source: string } | undefined;
+
+  /**
+   * Called after every pipeline execution with the current output files
+   * and execution metadata. `metadata` is `undefined` for the initial
+   * build-mode run (where no watcher metadata is available).
+   */
+  onOutput?: (options: {
+    files: readonly File[];
+    metadata: ExecutionMetadata | undefined;
+  }) => void;
 }
 
 export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
@@ -97,6 +109,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
     prefix: _pluginOptions.prefix || "/",
     handleReload: _pluginOptions.handleReload,
     resolveImport: _pluginOptions.resolveImport,
+    onOutput: _pluginOptions.onOutput,
   };
 
   let lastBuildTimestamp = -1;
@@ -105,6 +118,8 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
   const pipelineFileMap = new Map<string, File>();
   // Maps pipeline key (e.g. "/test.txt") → set of module ids (e.g. "\0assetpipe:/test.txt?raw")
   const pipelineModuleIds = new Map<string, Set<string>>();
+  // Most recent output files, exposed to user-provided callbacks.
+  let currentOutputFiles: readonly File[] = [];
 
   function registerOutputFiles(files: File[]) {
     pipelineFileMap.clear();
@@ -116,25 +131,39 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
       );
     });
 
+    currentOutputFiles = files;
     lastBuildTimestamp = Date.now();
   }
 
-  const resolvedImports = {} as Record<string, string | undefined | null>;
-  function resolveImport(config: ResolvedConfig, id: string) {
+  type ResolvedImport = { id: string; source: string };
+  // Keyed by the original import id passed to resolveId.
+  const resolvedImportsBySource = new Map<string, ResolvedImport | null>();
+  // Keyed by the id returned from resolveImport — used by load() and invalidation.
+  const resolvedImportsById = new Map<string, ResolvedImport>();
+
+  function resolveImport(
+    config: ResolvedConfig,
+    id: string,
+  ): ResolvedImport | undefined {
     if (!options.resolveImport) return;
 
-    const oldModule = resolvedImports[id];
-    if (oldModule) {
-      return oldModule;
-    } else if (oldModule === null) {
-      return;
+    const cached = resolvedImportsBySource.get(id);
+    if (cached !== undefined) {
+      return cached ?? undefined;
     }
 
-    const newModule = options.resolveImport({ config, id });
-    if (newModule) {
-      return newModule;
+    const resolved = options.resolveImport({
+      config,
+      id,
+      files: currentOutputFiles,
+    });
+    if (resolved) {
+      resolvedImportsBySource.set(id, resolved);
+      resolvedImportsById.set(resolved.id, resolved);
+      return resolved;
     } else {
-      return (resolvedImports[id] = null);
+      resolvedImportsBySource.set(id, null);
+      return;
     }
   }
 
@@ -159,6 +188,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
         });
 
         registerOutputFiles(outputFiles);
+        options.onOutput?.({ files: outputFiles, metadata: undefined });
         activePipeline.resolve();
       }
     },
@@ -172,8 +202,8 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
 
       await activePipeline.promise;
 
-      const module = resolveImport(config, source);
-      if (module) return source;
+      const resolved = resolveImport(config, source);
+      if (resolved) return resolved.id;
 
       const withoutPrefix = `/${source.slice(options.prefix.length)}`; // "@/test.txt?raw" → "/test.txt?raw"
       const pipelinePath = cleanUrl(withoutPrefix); // "/test.txt"
@@ -193,10 +223,8 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
     async load(id) {
       const config = this.environment.getTopLevelConfig();
 
-      // if (id.startsWith("\0assetpipeImport:")) {
-      const module = resolveImport(config, id);
-      if (module) return module;
-      // }
+      const resolved = resolvedImportsById.get(id);
+      if (resolved) return resolved.source;
 
       if (!id.startsWith("\0assetpipe:")) {
         return;
@@ -295,12 +323,24 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
               pipelineModuleIds.delete(key);
             });
 
+            for (const resolvedId of resolvedImportsById.keys()) {
+              for (let i = 0; i < environments.length; i++) {
+                const moduleGraph = environments[i].moduleGraph;
+                const mod = moduleGraph.getModuleById(resolvedId);
+                if (mod) moduleGraph.invalidateModule(mod);
+              }
+            }
+            resolvedImportsBySource.clear();
+            resolvedImportsById.clear();
+
             if (options.handleReload) {
               options.handleReload({ server, files, metadata });
             } else {
               server.hot.send({ type: "full-reload" });
             }
           }
+
+          options.onOutput?.({ files, metadata });
 
           firstExecution = false;
         },
