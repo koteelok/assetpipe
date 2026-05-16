@@ -9,9 +9,8 @@ import {
   type Pipeline,
   QueryPipeline,
 } from "../../pipelines";
-import type { File } from "../../types";
+import { File } from "../../types";
 import {
-  cloneFiles,
   collapsePaths,
   exists,
   existsFile,
@@ -41,7 +40,7 @@ class ExecutionCache {
   copy(reference: ExecutionCache) {
     this.results = {};
     for (const id in reference.results) {
-      this.results[id] = cloneFiles(reference.results[id]);
+      this.results[id] = reference.results[id].slice();
     }
     this.groupMembership = {};
     for (const id in reference.groupMembership) {
@@ -108,9 +107,18 @@ export class PipelineCacheManager {
 
   async loadResults() {
     try {
-      this.resulsCacheBackup.extract(
-        JSON.parse(await readFile(this.resultsPath, "utf-8")),
+      const parsed = JSON.parse(await readFile(this.resultsPath, "utf-8"));
+      for (const id in parsed.results) {
+        parsed.results[id] = parsed.results[id].map(
+          (f: { target: string; content: string }) =>
+            new File(f.target, f.content),
+        );
+      }
+      parsed.output = parsed.output.map(
+        (f: { target: string; content: string }) =>
+          new File(f.target, f.content),
       );
+      this.resulsCacheBackup.extract(parsed);
 
       let codeChanged = false;
       for (const directory of this.codeDirectories) {
@@ -477,16 +485,14 @@ export class PipelineCacheManager {
 
     for (let i = 0; i < prevOutput.length; i++) {
       const prevFile = prevOutput[i];
-      const prevFilePath = path.join(prevFile.dirname, prevFile.basename);
-      prevOutputMap[prevFilePath] = prevFile;
+      prevOutputMap[prevFile.target] = prevFile;
     }
 
     for (let i = 0; i < curOutput.length; i++) {
       const curFile = curOutput[i];
-      const curFilePath = path.join(curFile.dirname, curFile.basename);
-      curOutputMap[curFilePath] = curFile;
+      curOutputMap[curFile.target] = curFile;
 
-      const prevFile = prevOutputMap[curFilePath];
+      const prevFile = prevOutputMap[curFile.target];
 
       if (!prevFile) {
         addedFiles.push(curFile);
@@ -500,9 +506,8 @@ export class PipelineCacheManager {
 
     for (let i = 0; i < prevOutput.length; i++) {
       const prevFile = prevOutput[i];
-      const prevFilePath = path.join(prevFile.dirname, prevFile.basename);
 
-      if (!curOutputMap[prevFilePath]) {
+      if (!curOutputMap[prevFile.target]) {
         removedFiles.push(prevFile);
       }
     }
@@ -521,8 +526,8 @@ export class PipelineCacheManager {
     return { addedFiles, changedFiles, removedFiles, queryTriggers };
   }
 
-  writeOutput(files: File[]) {
-    this.resulsCache.output = cloneFiles(files);
+  writeOutput(files: readonly File[]) {
+    this.resulsCache.output = files.slice();
   }
 
   hasResult(id: string): boolean {
@@ -541,8 +546,8 @@ export class PipelineCacheManager {
     return undefined;
   }
 
-  writeResult(id: string, files: File[]) {
-    this.resulsCache.results[id] = cloneFiles(files);
+  writeResult(id: string, files: readonly File[]) {
+    this.resulsCache.results[id] = files.slice();
   }
 
   readGroupMembership(id: string): Set<string> | undefined {

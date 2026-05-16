@@ -26,34 +26,23 @@ export type ConvertImageOptions = {
 } & ImageFormatOptions;
 
 export function convertImage(options: ConvertImageOptions): Transformer {
-  return async (files: File[]) => {
-    await Promise.all(
+  return async (files) => {
+    return Promise.all(
       files.map(async (file) => {
         if (options.isImageFile !== undefined) {
-          if (!options.isImageFile(file)) return;
+          if (!options.isImageFile(file)) return file;
         } else {
-          if (!IMAGE_EXTENSIONS.has(extname(file.basename))) return;
+          if (!IMAGE_EXTENSIONS.has(extname(file.basename))) return file;
         }
-
-        file.basename = replaceExtension(
-          file.basename,
-          extname(file.basename),
-          `.${options.extension}`,
-        );
 
         const image = sharp(file.content);
         const output = tmpfile();
         await image.toFormat(options.extension, options).toFile(output);
-        file.content = output;
+
+        return file
+          .withExtname(`.${options.extension}`)
+          .withContent(output);
       }),
     );
-
-    return files;
   };
-}
-
-function replaceExtension(str: string, search: string, replace: string) {
-  const index = str.lastIndexOf(search);
-  if (index === -1) return str;
-  return str.substring(0, index) + replace;
 }

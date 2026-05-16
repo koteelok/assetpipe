@@ -7,10 +7,10 @@ import {
   InteractivePipeline,
   QueryPipeline,
 } from "../../pipelines";
-import type { File } from "../../types";
+import { File } from "../../types";
 import { AssetpipeCacheOptions, PipelineCacheManager } from "./cache";
 import { PipelineState } from "./state";
-import { cloneFiles, exists } from "../../utils";
+import { exists } from "../../utils";
 import { AssetpipeOptionsWithDefaults } from "../options";
 
 declare global {
@@ -57,11 +57,9 @@ export class PipelineExecutor {
             );
           }
 
-          pipeline.queryResult.push({
-            dirname: "",
-            basename: path.basename(state.base),
-            content: basePath,
-          });
+          pipeline.queryResult.push(
+            new File(path.basename(state.base), basePath),
+          );
           break;
         }
 
@@ -83,11 +81,10 @@ export class PipelineExecutor {
 
             if (!isMatch) continue;
 
-            pipeline.queryResult.push({
-              basename: dirent.name,
-              dirname: path.relative(basePath, dirent.parentPath),
-              content: fullPath,
-            });
+            const relative = path
+              .relative(basePath, fullPath)
+              .replaceAll(path.sep, "/");
+            pipeline.queryResult.push(new File(relative, fullPath));
           }
           break;
         }
@@ -118,14 +115,11 @@ export class PipelineExecutor {
     const query = pipeline.query[queryIndex];
     const state = pipeline.states[query];
     if (eventType === "create") {
-      const file = {
-        basename: path.basename(eventPath),
-        dirname: path.relative(
-          path.resolve(this.options.queryBase, state.base),
-          path.dirname(eventPath),
-        ),
-        content: eventPath,
-      };
+      const basePath = path.resolve(this.options.queryBase, state.base);
+      const relative = path
+        .relative(basePath, eventPath)
+        .replaceAll(path.sep, "/");
+      const file = new File(relative, eventPath);
       pipeline.queryResult.push(file);
       pipeline.filteredQueryResult.push(file);
     } else if (eventType === "delete") {
@@ -472,7 +466,7 @@ export class PipelineExecutor {
     startIndex: number = 0,
     sliceKey?: string,
   ) {
-    let output = inputs;
+    let output: File[] = inputs;
 
     for (let i = startIndex; i < parent.commands.length; i++) {
       const command = parent.commands[i];
@@ -481,13 +475,13 @@ export class PipelineExecutor {
 
       switch (command.type) {
         case "pipe":
-          output = await command.transformer(cloneFiles(output));
+          output = (await command.transformer(output)).slice();
           break;
 
         case "branch":
           output = await Promise.all(
             command.transformers.map((transformer) =>
-              transformer(cloneFiles(output)),
+              transformer(output.slice()),
             ),
           ).then((results) => results.flat());
           break;

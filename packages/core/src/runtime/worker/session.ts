@@ -84,7 +84,7 @@ export class PipelineSession {
         if (metadata && outputDirectory) {
           await Promise.all(
             metadata.removedFiles.map((file) =>
-              rm(path.join(outputDirectory, file.dirname, file.basename), {
+              rm(path.join(outputDirectory, file.target), {
                 recursive: true,
                 force: true,
               }),
@@ -104,7 +104,7 @@ export class PipelineSession {
             });
             await copyFile(
               file.content,
-              path.join(outputDirectory, file.dirname, file.basename),
+              path.join(outputDirectory, file.target),
             );
           }),
         );

@@ -157,7 +157,7 @@ export function extractTiles(_options: ExtractTilesOptions): Transformer {
     })(),
   };
 
-  return async (files) => {
+  return async (files: readonly File[]) => {
     const resultFiles: File[] = [];
 
     await Promise.all(
@@ -329,11 +329,9 @@ export function extractTiles(_options: ExtractTilesOptions): Transformer {
                         basename = `${file.basename.replace(extension, "")}_${left}_${top}${extension}`;
                       }
 
-                      resultFiles.push({
-                        basename,
-                        dirname: file.dirname,
-                        content: output,
-                      });
+                      resultFiles.push(
+                        file.withBasename(basename).withContent(output),
+                      );
 
                       resolve();
                     }),

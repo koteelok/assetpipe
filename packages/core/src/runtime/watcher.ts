@@ -8,6 +8,7 @@ import {
 } from "./options";
 import { createSession } from "./createSession";
 import type { File } from "../types";
+import { rehydrateFiles, rehydrateMetadata } from "./rehydrate";
 
 export class PipelineWatcher {
   private options: AssetpipeOptionsWithDefaults;
@@ -71,7 +72,12 @@ export class PipelineWatcher {
     await session.runWatch({
       onOutput: proxy(
         (files: File[] | undefined, metadata?: ExecutionMetadata) => {
-          if (files) this.options.onOutput?.(files, metadata);
+          if (files) {
+            this.options.onOutput?.(
+              rehydrateFiles(files),
+              metadata ? rehydrateMetadata(metadata) : undefined,
+            );
+          }
         },
       ),
       onSourceChanged: proxy(() => {

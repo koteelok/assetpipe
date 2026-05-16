@@ -11,7 +11,7 @@ import { type AssetRectangle, packAssets } from "./packer";
 export function texturePacker(options?: TexturePackerOptions): Transformer {
   const _options = resolveOptions(options);
 
-  return async (files: File[]) => {
+  return async (files) => {
     const output: File[] = [];
     const packRectangles: AssetRectangle[] = [];
 
@@ -56,11 +56,7 @@ export function texturePacker(options?: TexturePackerOptions): Transformer {
             offsetY: -info.trimOffsetTop,
             sourceWidth: width,
             sourceHeight: height,
-            file: {
-              basename: file.basename,
-              dirname: file.dirname,
-              content: output,
-            },
+            file: file.withContent(output),
           });
           return;
         }
@@ -82,11 +78,7 @@ export function texturePacker(options?: TexturePackerOptions): Transformer {
 
     for (const atlas of atlases) {
       for (const image of atlas.images) {
-        output.push({
-          basename: image.basename,
-          dirname: _options.output,
-          content: image.content,
-        });
+        output.push(image.withDirname(_options.output));
       }
     }
 
