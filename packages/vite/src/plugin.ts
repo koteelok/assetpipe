@@ -23,6 +23,32 @@ import { encodeURIPath } from "./utils/encodeURIPath";
 import { joinUrlSegments } from "./utils/joinUrlSegments";
 import { isParsableRequest } from "./utils/viteRequests";
 
+export interface HandleReloadOptions {
+  /**
+   * The output files from the pipeline execution.
+   */
+  files: readonly File[];
+  server: ViteDevServer;
+  metadata: ExecutionMetadata;
+}
+
+export interface ResolveImportOptions {
+  /**
+   * The output files from the pipeline execution.
+   */
+  files: readonly File[];
+  config: ResolvedConfig;
+  id: string;
+}
+
+export interface OnOutputOptions {
+  /**
+   * The output files from the pipeline execution.
+   */
+  files: readonly File[];
+  metadata: ExecutionMetadata | undefined;
+}
+
 export interface AssetpipePluginOptions {
   /**
    * Path to the AssetPipe pipeline entry file.
@@ -63,14 +89,7 @@ export interface AssetpipePluginOptions {
    * When provided, the plugin will call this function instead of
    * sending a full-reload signal to the client.
    */
-  handleReload?: (options: {
-    server: ViteDevServer;
-    /**
-     * The output files from the pipeline execution.
-     */
-    files: File[];
-    metadata: ExecutionMetadata;
-  }) => void;
+  handleReload?: (options: HandleReloadOptions) => void;
 
   /**
    * Custom function to resolve module imports.
@@ -79,21 +98,14 @@ export interface AssetpipePluginOptions {
    * string) to override how a specific import is loaded.
    * Return `undefined` to fall through to the default behavior.
    */
-  resolveImport?: (options: {
-    config: ResolvedConfig;
-    id: string;
-    files: readonly File[];
-  }) => { id: string; source: string } | undefined;
+  resolveImport?: (options: ResolveImportOptions) => { id: string; source: string } | undefined;
 
   /**
    * Called after every pipeline execution with the current output files
    * and execution metadata. `metadata` is `undefined` for the initial
    * build-mode run (where no watcher metadata is available).
    */
-  onOutput?: (options: {
-    files: readonly File[];
-    metadata: ExecutionMetadata | undefined;
-  }) => void;
+  onOutput?: (options: OnOutputOptions) => void;
 }
 
 export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
