@@ -22,7 +22,7 @@ import type { ExecutionMetadata } from "../options";
 import type { PipelineState } from "./state";
 import { AssetpipeOptionsWithDefaults } from "../options";
 
-type AssetpipeCacheOptions = SetRequired<
+export type AssetpipeCacheOptions = SetRequired<
   AssetpipeOptionsWithDefaults,
   "cacheDirectory"
 >;
@@ -72,7 +72,7 @@ export class PipelineCacheManager {
   public resultsPath!: string;
   public sourceCodeSnapshotsPath!: string;
   public querySnapshotsPath!: string;
-  public codeFiels!: Set<string>;
+  public codeFiles!: Set<string>;
   public codeDirectories!: string[];
 
   async init() {
@@ -88,8 +88,8 @@ export class PipelineCacheManager {
       await writeFile(versionFile, this.CACHE_VERSION.toString());
     }
 
-    this.codeFiels = await parseImportsDeep(this.options.entry);
-    this.codeDirectories = collapsePaths(this.codeFiels);
+    this.codeFiles = await parseImportsDeep(this.options.entry);
+    this.codeDirectories = collapsePaths(this.codeFiles);
 
     const entryPath = path.join(
       this.options.cacheDirectory,
@@ -128,7 +128,7 @@ export class PipelineCacheManager {
           );
 
           for (const event of events) {
-            if (this.codeFiels.has(event.path)) {
+            if (this.codeFiles.has(event.path)) {
               codeChanged = true;
               break;
             }

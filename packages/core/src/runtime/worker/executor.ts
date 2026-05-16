@@ -8,7 +8,7 @@ import {
   QueryPipeline,
 } from "../../pipelines";
 import type { File } from "../../types";
-import { PipelineCacheManager } from "./cache";
+import { AssetpipeCacheOptions, PipelineCacheManager } from "./cache";
 import { PipelineState } from "./state";
 import { cloneFiles, exists } from "../../utils";
 import { AssetpipeOptionsWithDefaults } from "../options";
@@ -23,53 +23,23 @@ export class PipelineExecutor {
   private abortController?: AbortController;
   private options!: AssetpipeOptionsWithDefaults;
 
-  public async init(options: AssetpipeOptionsWithDefaults) {
+  public async init(options: AssetpipeOptionsWithDefaults): Promise<void> {
     this.options = options;
 
     this.state = await PipelineState.create(this.options);
 
     if (this.options.cacheDirectory) {
       // typecript is dumb lol
-      this.cache = new PipelineCacheManager(this.state, {
-        cacheDirectory: this.options.cacheDirectory,
-        ...this.options,
-      });
+      this.cache = new PipelineCacheManager(
+        this.state,
+        this.options as AssetpipeCacheOptions
+      );
       await this.cache.init();
     }
-
-    return this.state.serialize();
   }
 
-  public async abort() {
+  public abort(): void {
     this.abortController?.abort();
-  }
-
-  public async cacheTempDirectory() {
-    return this.cache?.tempFilesPath;
-  }
-
-  public async saveResultsToCache(): Promise<void> {
-    return this.cache?.saveResults();
-  }
-
-  public async loadResultsFromCache(): Promise<void> {
-    return this.cache?.loadResults();
-  }
-
-  public async hitQueriesAgainstCache(): Promise<void> {
-    return this.cache?.hitQueries();
-  }
-
-  public async restoreCacheFromBackup(): Promise<void> {
-    return this.cache?.restoreFromBackup();
-  }
-
-  public async getCacheRedundantTempFiles() {
-    return this.cache?.getRedundantTempFiles();
-  }
-
-  public async getExecutionMetadata() {
-    return this.cache?.getExecutionMetadata();
   }
 
   private async executeQuery(pipeline: QueryPipeline | IgnorePipeline) {
@@ -138,12 +108,12 @@ export class PipelineExecutor {
     this.filterAllQueryResults();
   }
 
-  public async submitQueryCacheMiss(
+  public submitQueryCacheMiss(
     pipelineIndex: number,
     queryIndex: number,
     eventType: string,
     eventPath: string,
-  ) {
+  ): void {
     const pipeline = this.state.queryPipelines[pipelineIndex];
     const query = pipeline.query[queryIndex];
     const state = pipeline.states[query];
@@ -172,10 +142,6 @@ export class PipelineExecutor {
     }
     pipeline.cacheHit = false;
     pipeline.pendingCacheMisses.add(eventPath);
-  }
-
-  public async drainActiveCacheMisses(): Promise<void> {
-    this.cache?.drainActiveCacheMisses();
   }
 
   public async computePipelineOutput(tempDirectory: string) {

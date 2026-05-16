@@ -2,7 +2,7 @@
 "use strict";
 
 var { Command } = require("commander");
-var { run, watch } = require("@assetpipe/core/runtime");
+var { run, PipelineWatcher } = require("@assetpipe/core/runtime");
 
 var program = new Command();
 
@@ -22,7 +22,7 @@ var options = program.opts();
 
 async function main() {
   if (options.watch) {
-    const watcher = await watch({
+    const watcher = new PipelineWatcher({
       entry: PIPELINE_PATH,
       outputDirectory: options.output,
       cacheDirectory: options.cache,

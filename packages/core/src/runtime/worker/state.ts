@@ -15,23 +15,6 @@ import {
 } from "../../pipelines";
 import type { AssetpipeOptions } from "../options";
 
-interface IgnoreInfo {
-  context: string;
-  query: string[];
-}
-
-interface QueryInfo {
-  context: string;
-  query: string[];
-  states: Record<string, QueryState>;
-}
-
-export interface SerializedExecutorState {
-  queryPipelines: QueryInfo[];
-  ignorePipelines: IgnoreInfo[];
-  ignorePatterns: string[];
-}
-
 export class PipelineState {
   public root!: Pipeline;
   public queryPipelines: QueryPipeline[] = [];
@@ -116,29 +99,6 @@ export class PipelineState {
     }
 
     return counter;
-  }
-
-  public serialize(): SerializedExecutorState {
-    return {
-      ignorePipelines: this.ignorePipelines.map((pipeline) => ({
-        context: pipeline.context,
-        query: pipeline.query,
-      })),
-
-      queryPipelines: this.queryPipelines.map((pipeline) => ({
-        context: pipeline.context,
-        query: pipeline.query,
-        states: pipeline.query.reduce(
-          (acc, query) => {
-            acc[query] = pipeline.states[query];
-            return acc;
-          },
-          {} as Record<string, QueryState>,
-        ),
-      })),
-
-      ignorePatterns: this.ignorePatterns,
-    };
   }
 
   public static async create(options: AssetpipeOptions) {

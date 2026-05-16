@@ -5,7 +5,7 @@ export default defineConfig({
     "src/types.ts",
     "src/pipelines/index.ts",
     "src/runtime/index.ts",
-    "src/runtime/worker/index.ts",
+    "src/runtime/worker/session.ts",
   ],
   hash: false,
   clean: true,

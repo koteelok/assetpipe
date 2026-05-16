@@ -1,351 +1,94 @@
-import type { AsyncSubscription } from "@parcel/watcher";
-import ParcelWatcher from "@parcel/watcher";
-import { randomUUID } from "crypto";
-import { copyFile, mkdir, rm } from "fs/promises";
-import { tmpdir } from "os";
-import path from "path";
-import picomatch from "picomatch";
+import * as comlink from "comlink";
 
-import {
-  collapsePaths,
-  exists,
-  existsFile,
-  debounceAsync,
-  parseImportsDeep,
-} from "../utils";
-import { createExecutor, type PipelineExecutorAPI } from "./executor";
 import {
   applyDefaults,
   type AssetpipeOptions,
   type AssetpipeOptionsWithDefaults,
   type ExecutionMetadata,
 } from "./options";
-import type { SerializedExecutorState } from "./worker";
+import { createSession } from "./createSession";
+import type { File } from "../types";
 
 export class PipelineWatcher {
   private options: AssetpipeOptionsWithDefaults;
+  private active = false;
+  private terminate?: () => Promise<void>;
+  private respawning?: Promise<void>;
+  private respawnQueued = false;
 
   constructor(_options: AssetpipeOptions) {
+    if (!_options.outputDirectory && !_options.onOutput) {
+      throw new Error("Either outputDirectory or onOutput must be provided");
+    }
+
     this.options = applyDefaults(_options);
   }
 
-  private active = false;
-
-  async spawn() {
+  async spawn(): Promise<void> {
     if (this.active) return;
     this.active = true;
-
-    const { executor, state } = await createExecutor(this.options);
-    this.executor = executor;
-    this.state = state;
-
-    if (this.options.cacheDirectory) {
-      const cacheTempDirectory = await this.executor.cacheTempDirectory();
-      if (!cacheTempDirectory) {
-        throw new Error(
-          "Failed to acquire cache temp directory from PipelineExecutorAPI",
-        );
-      }
-      this.tempDirectory = cacheTempDirectory;
-    } else {
-      this.tempDirectory = `${tmpdir()}/${randomUUID()}`;
-      await mkdir(this.tempDirectory, { recursive: true });
+    try {
+      await this.startSession();
+    } catch (err) {
+      this.active = false;
+      throw err;
     }
-
-    if (this.options.outputDirectory) {
-      await mkdir(this.options.outputDirectory, { recursive: true });
-    }
-
-    if (this.options.cacheDirectory) {
-      await this.executor.hitQueriesAgainstCache();
-      await this.executor.loadResultsFromCache();
-    }
-    await this.executor.executeAllQueries();
-
-    await this.subscribeToSourceCode();
-    await this.subscribeToQueries();
-    await this.run();
-
-    this.onSourceCodeChange.enable();
-    this.onQueryTriggered.enable();
   }
 
-  async despawn() {
+  async despawn(): Promise<void> {
     if (!this.active) return;
     this.active = false;
-    await Promise.all([
-      (async () => {
-        if (!this.options.cacheDirectory) {
-          await rm(this.tempDirectory, { recursive: true });
-        }
-      })(),
-      this.onQueryTriggered.disable(),
-      this.unsubscribeFromSourceCode(),
-      this.unsubscribeFromQueries(),
-    ]);
+    this.respawnQueued = false;
+    await this.respawning;
+    await this.terminate?.();
+    this.terminate = undefined;
   }
 
-  private tempDirectory!: string;
-  private executor!: PipelineExecutorAPI;
-  private state!: SerializedExecutorState;
-  private sourceCodeSubscriptions?: AsyncSubscription[];
-
-  private async subscribeToSourceCode() {
-    const codeFiles = await parseImportsDeep(this.options.entry);
-    const codeDirectories = collapsePaths(codeFiles);
-
-    const subscriptions = [];
-    for (const directory of codeDirectories) {
-      subscriptions.push(
-        ParcelWatcher.subscribe(directory, (errs, events) => {
-          for (const event of events) {
-            if (codeFiles.has(event.path)) {
-              this.onSourceCodeChange.call();
-              break;
-            }
-          }
-        }),
-      );
-    }
-
-    this.sourceCodeSubscriptions = await Promise.all(subscriptions);
-  }
-
-  private async unsubscribeFromSourceCode() {
-    if (this.sourceCodeSubscriptions) {
-      const unsubscriptions = [];
-      for (const subscription of this.sourceCodeSubscriptions) {
-        unsubscriptions.push(subscription.unsubscribe());
-      }
-      this.sourceCodeSubscriptions = [];
-      await Promise.all(unsubscriptions);
-    }
-  }
-
-  private onSourceCodeChange = debounceAsync(async () => {
-    await this.despawn();
-    await this.spawn();
-  }, 100);
-
-  private querySubscriptions?: AsyncSubscription[];
-
-  private async subscribeToQueries() {
-    const subscriptions = [];
-    const subscriptionOptions = { ignore: this.state.ignorePatterns };
-    const pendingSubmissions = new Set<Promise<void>>();
-
-    const submitEvent = (
-      pipelineIndex: number,
-      queryIndex: number,
-      event: ParcelWatcher.Event,
-    ) => {
-      const promise = this.executor
-        .submitQueryCacheMiss(pipelineIndex, queryIndex, event.type, event.path)
-        .then(() => {
-          pendingSubmissions.delete(promise);
-
-          if (pendingSubmissions.size === 0) {
-            this.onQueryTriggered.call();
-          }
-        });
-      pendingSubmissions.add(promise);
-    };
-
-    for (
-      let pipelineIndex = 0;
-      pipelineIndex < this.state.queryPipelines.length;
-      pipelineIndex++
-    ) {
-      const info = this.state.queryPipelines[pipelineIndex];
-
-      for (let queryIndex = 0; queryIndex < info.query.length; queryIndex++) {
-        const query = info.query[queryIndex];
-        const state = info.states[info.query[queryIndex]];
-
-        switch (state.kind) {
-          case "file": {
-            const filePath = path.resolve(this.options.queryBase, state.base);
-            const fileDirname = path.dirname(filePath);
-            const fileBasename = path.basename(filePath);
-
-            if (!(await existsFile(filePath))) {
-              console.warn(
-                `Failed query (${path.join(info.context, query)}). File does not exist: ${filePath}`,
-              );
-            }
-
-            subscriptions.push(
-              ParcelWatcher.subscribe(
-                fileDirname,
-                (err, events) => {
-                  for (let i = 0; i < events.length; i++) {
-                    const event = events[i];
-                    const relativePath = path.relative(fileDirname, event.path);
-
-                    if (relativePath !== fileBasename) {
-                      continue;
-                    }
-
-                    submitEvent(pipelineIndex, queryIndex, event);
-                  }
-                },
-                subscriptionOptions,
-              ),
-            );
-            break;
-          }
-
-          case "glob": {
-            const basePath = path.resolve(this.options.queryBase, state.base);
-            const matcher = picomatch(state.glob, {
-              windows: process.platform === "win32",
-            });
-
-            if (!(await exists(basePath))) {
-              console.warn(
-                `Failed query (${path.join(info.context, query)}). Directory does not exist: ${basePath}`,
-              );
-            }
-
-            subscriptions.push(
-              ParcelWatcher.subscribe(
-                basePath,
-                (err, events) => {
-                  for (let i = 0; i < events.length; i++) {
-                    const event = events[i];
-                    const relativePath = path.relative(basePath, event.path);
-
-                    if (
-                      !matcher(relativePath) &&
-                      !matcher(relativePath + path.sep)
-                    ) {
-                      continue;
-                    }
-
-                    submitEvent(pipelineIndex, queryIndex, event);
-                  }
-                },
-                subscriptionOptions,
-              ),
-            );
-            break;
-          }
-        }
-      }
-    }
-
-    this.querySubscriptions = await Promise.all(subscriptions);
-  }
-
-  private onQueryTriggered = debounceAsync(async () => {
-    await this.run();
-  }, 100);
-
-  private async unsubscribeFromQueries() {
-    if (this.querySubscriptions) {
-      const unsubscriptions = [];
-      for (const subscription of this.querySubscriptions) {
-        unsubscriptions.push(subscription.unsubscribe());
-      }
-      this.querySubscriptions = [];
-      await Promise.all(unsubscriptions);
-    }
-  }
-
-  private lastRun: Promise<void> = Promise.resolve();
-
-  private async run() {
-    await this.executor.abort();
-
-    const previousRun = this.lastRun;
-
-    this.lastRun = (async () => {
+  private startRespawn(): void {
+    this.respawning = (async () => {
       try {
-        await previousRun;
-      } catch {}
-
-      const { outputDirectory, cacheDirectory, onOutput } = this.options;
-
-      try {
-        const files = await this.executor.computePipelineOutput(
-          this.tempDirectory,
-        );
-
-        let outputChanges: ExecutionMetadata | undefined;
-
-        if (cacheDirectory) {
-          const redundantTempFiles =
-            await this.executor.getCacheRedundantTempFiles();
-          if (redundantTempFiles) {
-            await Promise.all(
-              redundantTempFiles.map((file) =>
-                rm(file, { recursive: true, force: true }),
-              ),
-            );
-          }
-
-          outputChanges = await this.executor.getExecutionMetadata();
-
-          if (outputChanges && outputDirectory) {
-            await Promise.all(
-              outputChanges.removedFiles.map((file) => {
-                const filePath = path.join(
-                  outputDirectory,
-                  file.dirname,
-                  file.basename,
-                );
-                return rm(filePath, { recursive: true, force: true });
-              }),
-            );
-          }
-
-          await this.executor.saveResultsToCache();
-          await this.executor.drainActiveCacheMisses();
-        } else {
-          if (outputDirectory) {
-            await rm(outputDirectory, { recursive: true });
-            await mkdir(outputDirectory, { recursive: true });
-          }
+        await this.terminate?.();
+        this.terminate = undefined;
+        if (this.active) await this.startSession();
+      } finally {
+        this.respawning = undefined;
+        if (this.active && this.respawnQueued) {
+          this.respawnQueued = false;
+          this.startRespawn();
         }
-
-        if (files) {
-          if (outputDirectory) {
-            await Promise.all(
-              files.map(async (file) => {
-                await mkdir(path.join(outputDirectory, file.dirname), {
-                  recursive: true,
-                });
-                await copyFile(
-                  file.content,
-                  path.join(outputDirectory, file.dirname, file.basename),
-                );
-              }),
-            );
-          }
-
-          onOutput?.(files, outputChanges);
-        }
-      } catch (error) {
-        if (cacheDirectory) {
-          await this.executor.restoreCacheFromBackup();
-        }
-
-        if (error instanceof Error && error.name === "AbortError") {
-          return;
-        }
-
-        throw error;
       }
     })();
-
-    await this.lastRun;
-  }
-}
-
-export async function watch(options: AssetpipeOptions) {
-  if (!options.outputDirectory && !options.onOutput) {
-    throw new Error("Either outputDirectory or onOutput must be provided");
   }
 
-  return new PipelineWatcher(options);
+  private async startSession(): Promise<void> {
+    const { session, terminate } = await createSession(this.options);
+    this.terminate = terminate;
+
+    const proxy: <T>(value: T) => T = this.options.useWorker
+      ? (comlink.proxy as <T>(value: T) => T)
+      : (value) => value;
+
+    await session.runWatch({
+      onOutput: proxy(
+        (files: File[] | undefined, metadata?: ExecutionMetadata) => {
+          if (files) this.options.onOutput?.(files, metadata);
+        },
+      ),
+      onSourceChanged: proxy(() => {
+        if (!this.active) return;
+        if (this.respawning) {
+          this.respawnQueued = true;
+          return;
+        }
+        this.startRespawn();
+      }),
+      onError: proxy((err: { name: string; message: string }) => {
+        const error = new Error(err.message);
+        error.name = err.name;
+        queueMicrotask(() => {
+          throw error;
+        });
+      }),
+    });
+  }
 }
