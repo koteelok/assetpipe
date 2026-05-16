@@ -18,19 +18,18 @@ function bumpCounter(name: string): Promise<void> {
 }
 
 async function concat(
-  files: File[],
+  files: readonly File[],
   outName: string,
   suffix: string,
 ): Promise<File> {
   const parts = await Promise.all(
     files
-      .slice()
-      .sort((a, b) => (a.basename > b.basename ? 1 : -1))
+      .toSorted((a, b) => (a.basename > b.basename ? 1 : -1))
       .map((f) => readFile(f.content, "utf-8")),
   );
   const out = tmpfile();
   await writeFile(out, parts.join("") + suffix);
-  return { basename: outName, dirname: "", content: out };
+  return new File(outName, out);
 }
 
 const registryPipeline = group()

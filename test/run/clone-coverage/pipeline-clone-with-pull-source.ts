@@ -1,6 +1,6 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { File, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { resolve } from "path";
+import { posix, resolve } from "path";
 
 const counterDir = resolve(__dirname, "counters");
 
@@ -24,7 +24,7 @@ const extras = query("assets/extras/*.txt").pipe(async (files) => {
     .join("|");
   const out = tmpfile();
   await writeFile(out, concat);
-  return [{ basename: "extras.bundle", dirname: "__extras__", content: out }];
+  return [new File(posix.join("__extras__", "extras.bundle"), out)];
 });
 
 // Source has a `pull` in its commands. The clone reads source's resolved
@@ -34,9 +34,9 @@ const source = query("assets/main/*.txt")
   .pull(extras)
   .pipe(async (files) => {
     await bumpCounter("source");
-    const sorted = files
-      .slice()
-      .sort((a, b) => (a.basename > b.basename ? 1 : -1));
+    const sorted = files.toSorted((a, b) =>
+      a.basename > b.basename ? 1 : -1,
+    );
     const joined = await Promise.all(
       sorted.map(async (f) => {
         const raw = await readFile(f.content, "utf-8");
@@ -45,7 +45,7 @@ const source = query("assets/main/*.txt")
     );
     const out = tmpfile();
     await writeFile(out, joined.join(","));
-    return [{ basename: "source.txt", dirname: "", content: out }];
+    return [new File("source.txt", out)];
   });
 
 const cloned = source.clone().pipe(async (files) => {
@@ -53,7 +53,7 @@ const cloned = source.clone().pipe(async (files) => {
   const raw = await readFile(files[0].content, "utf-8");
   const out = tmpfile();
   await writeFile(out, "[" + raw + "]");
-  return [{ basename: "wrapped.txt", dirname: "", content: out }];
+  return [new File("wrapped.txt", out)];
 });
 
 export default cloned;

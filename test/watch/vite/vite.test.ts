@@ -78,7 +78,7 @@ describe("vite dev server", () => {
       vi.fn<
         (opts: {
           server: ViteDevServer;
-          files: PipelineFile[];
+          files: readonly PipelineFile[];
           metadata: ExecutionMetadata;
         }) => void
       >();

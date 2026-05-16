@@ -1,4 +1,5 @@
 import { query, tmpfile } from "@assetpipe/config";
+import { File } from "@assetpipe/core/types";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { resolve } from "path";
 
@@ -22,7 +23,7 @@ const source = query("assets/*.txt").pipe(async (files) => {
   );
   const out = tmpfile();
   await writeFile(out, texts.sort().join(","));
-  return [{ basename: "joined.txt", dirname: "", content: out }];
+  return [new File("joined.txt", out)];
 });
 
 export default source.clone().pipe(async (files) => {
@@ -30,5 +31,5 @@ export default source.clone().pipe(async (files) => {
   const raw = await readFile(files[0].content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw.toUpperCase());
-  return [{ basename: "joined.upper.txt", dirname: "", content: out }];
+  return [new File("joined.upper.txt", out)];
 });

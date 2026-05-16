@@ -1,6 +1,6 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { File, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { resolve } from "path";
+import { posix, resolve } from "path";
 
 const counterDir = resolve(__dirname, "counters");
 
@@ -24,7 +24,7 @@ const extras = query("assets/extras/*.txt").pipe(async (files) => {
     .join("|");
   const out = tmpfile();
   await writeFile(out, joined);
-  return [{ basename: "extras.bundle", dirname: "__extras__", content: out }];
+  return [new File(posix.join("__extras__", "extras.bundle"), out)];
 });
 
 export default query("assets/main/*.{a,b}", {
@@ -35,9 +35,9 @@ export default query("assets/main/*.{a,b}", {
       ".",
     )[0];
     await bumpCounter("pre-" + tag);
-    const sorted = files
-      .slice()
-      .sort((a, b) => (a.basename > b.basename ? 1 : -1));
+    const sorted = files.toSorted((a, b) =>
+      a.basename > b.basename ? 1 : -1,
+    );
     const joined = await Promise.all(
       sorted.map(async (f) => {
         const raw = await readFile(f.content, "utf-8");
@@ -46,7 +46,7 @@ export default query("assets/main/*.{a,b}", {
     );
     const out = tmpfile();
     await writeFile(out, joined.join(","));
-    return [{ basename: tag + ".pre", dirname: "", content: out }];
+    return [new File(tag + ".pre", out)];
   })
   .pull(extras)
   .pipe(async (files) => {
@@ -58,5 +58,5 @@ export default query("assets/main/*.{a,b}", {
     const extraRaw = extra ? await readFile(extra.content, "utf-8") : "";
     const out = tmpfile();
     await writeFile(out, mainRaw + "+" + extraRaw);
-    return [{ basename: tag + ".out", dirname: "", content: out }];
+    return [new File(tag + ".out", out)];
   });

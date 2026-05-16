@@ -1,4 +1,4 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { File, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 
 // Each .txt file is processed individually (parallel, not bulk).
@@ -7,5 +7,5 @@ export default query("assets/txt/*.txt", { parallel: true }).pipe(async ([file])
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw.toUpperCase());
-  return [{ basename: file.basename + ".out", dirname: "", content: out }];
+  return [new File(file.basename + ".out", out)];
 });

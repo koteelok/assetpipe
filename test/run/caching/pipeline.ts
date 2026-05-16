@@ -1,4 +1,5 @@
 import { query, tmpfile } from "@assetpipe/config";
+import { File } from "@assetpipe/core/types";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { resolve } from "path";
 
@@ -16,5 +17,5 @@ export default query("assets/*.txt", { parallel: true }).pipe(async ([file]) => 
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw.toUpperCase() + ` (count: ${count})`);
-  return [{ basename: file.basename + ".out", dirname: "", content: out }];
+  return [new File(file.basename + ".out", out)];
 });

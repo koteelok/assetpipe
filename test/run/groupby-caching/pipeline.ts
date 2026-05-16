@@ -1,4 +1,4 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { File, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { resolve } from "path";
 
@@ -21,5 +21,5 @@ export default query("assets/**/*.txt", {
   );
   const out = tmpfile();
   await writeFile(out, texts.join("\n"));
-  return [{ basename: `${tag}.bundle`, dirname: "", content: out }];
+  return [new File(`${tag}.bundle`, out)];
 });

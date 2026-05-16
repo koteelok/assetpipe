@@ -29,7 +29,7 @@ describe("cache invalidation on source-code dependency changes", () => {
     await writeFile(
       entry,
       `
-import { query, tmpfile } from "@assetpipe/config";
+import { File, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
 import { format } from "../formatter";
@@ -42,7 +42,7 @@ export default query(ASSETS).pipe(async (files) => {
     files.map((f) => readFile(f.content, "utf-8")),
   );
   await writeFile(out, format(parts));
-  return [{ basename: "out.txt", dirname: "", content: out }];
+  return [new File("out.txt", out)];
 });
 `,
     );
@@ -121,7 +121,7 @@ export function transform(parts: string[]) { return parts.map(upper).join(","); 
     await writeFile(
       entry,
       `
-import { query, tmpfile } from "@assetpipe/config";
+import { File, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
 import { transform } from "./subpipelines/tilemap/pipeline";
@@ -134,7 +134,7 @@ export default query(ASSETS).pipe(async (files) => {
     files.map((f) => readFile(f.content, "utf-8")),
   );
   await writeFile(out, transform(parts));
-  return [{ basename: "out.txt", dirname: "", content: out }];
+  return [new File("out.txt", out)];
 });
 `,
     );

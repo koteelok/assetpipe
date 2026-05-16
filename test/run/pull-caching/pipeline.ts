@@ -1,17 +1,15 @@
 import { File, group, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 
-async function jsonjoin(files: File[]): Promise<File[]> {
+async function jsonjoin(files: readonly File[]): Promise<File[]> {
   return Promise.all(
     files.map(async (file) => {
       const array = JSON.parse(await readFile(file.content, "utf-8"));
       const out = tmpfile();
       await writeFile(out, array.join(""));
-      return {
-        basename: file.basename.replace("json", "txt"),
-        dirname: file.dirname,
-        content: out,
-      };
+      return file
+        .withBasename(file.basename.replace("json", "txt"))
+        .withContent(out);
     }),
   );
 }
@@ -33,7 +31,7 @@ export default group(
       );
       const out = tmpfile();
       await writeFile(out, `${text1}${text2}${text1}`);
-      return [{ basename: `2.txt`, dirname: "", content: out }];
+      return [new File(`2.txt`, out)];
     }),
 
   group()
@@ -44,17 +42,17 @@ export default group(
         text.split("").map(async (char) => {
           const out = tmpfile();
           await writeFile(out, `[${char}]`);
-          return { basename: `1_${char}.txt`, dirname: "", content: out };
+          return new File(`1_${char}.txt`, out);
         }),
       );
     }),
 ).pipe(async (files) => {
   const texts = await Promise.all(
     files
-      .sort((a, b) => (a.basename > b.basename ? 1 : -1))
+      .toSorted((a, b) => (a.basename > b.basename ? 1 : -1))
       .map((file) => readFile(file.content, "utf-8")),
   );
   const out = tmpfile();
   await writeFile(out, texts.join("\n"));
-  return [{ basename: `bundle.txt`, dirname: "", content: out }];
+  return [new File(`bundle.txt`, out)];
 });

@@ -1,4 +1,4 @@
-import { group, ignore, query, tmpfile } from "@assetpipe/config";
+import { File, group, ignore, query, tmpfile } from "@assetpipe/config";
 import { writeFile } from "fs/promises";
 
 // ignore() marks assets/excluded/** so those files are hidden from all other pipelines.
@@ -12,7 +12,7 @@ const contentPipeline = query("assets/**/*.*").pipe(async (files) => {
     .join("\n");
   const out = tmpfile();
   await writeFile(out, names);
-  return [{ basename: "filelist.txt", dirname: "", content: out }];
+  return [new File("filelist.txt", out)];
 });
 
 export default group(ignorePipeline, contentPipeline);

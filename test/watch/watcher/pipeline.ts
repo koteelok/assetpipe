@@ -1,4 +1,4 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { File, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 
 export default query("assets/*").pipe(async (files) => {
@@ -10,11 +10,5 @@ export default query("assets/*").pipe(async (files) => {
 
   await writeFile(content, text);
 
-  return [
-    {
-      basename: "file.txt",
-      dirname: "",
-      content,
-    },
-  ];
+  return [new File("file.txt", content)];
 });

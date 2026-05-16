@@ -1,6 +1,6 @@
-import { group, query, tmpfile } from "@assetpipe/config";
+import { File, group, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { resolve } from "path";
+import { posix, resolve } from "path";
 
 const counterDir = resolve(__dirname, "counters");
 
@@ -21,7 +21,7 @@ const source = query("assets/*.txt", { parallel: true }).pipe(
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
-    return [{ ...file, content: out }];
+    return [file.withContent(out)];
   },
 );
 
@@ -31,7 +31,7 @@ function makeChild(parent: typeof source, tag: string) {
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw + "/" + tag);
-    return [{ basename: file.basename, dirname: tag, content: out }];
+    return [new File(posix.join(tag, file.basename), out)];
   });
 }
 

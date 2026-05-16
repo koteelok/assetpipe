@@ -1,4 +1,4 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { File, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 
 // The txt pipeline processes each .txt file and adds a .proc extension.
@@ -11,7 +11,7 @@ const txtPipeline = query("assets/txt/*.txt", { parallel: true })
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
-    return [{ basename: file.basename + ".proc", dirname: "", content: out }];
+    return [new File(file.basename + ".proc", out)];
   });
 
 const jsonPipeline = query("assets/json/*.json", { parallel: true })
@@ -19,7 +19,7 @@ const jsonPipeline = query("assets/json/*.json", { parallel: true })
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw);
-    return [{ basename: file.basename + ".dat", dirname: "", content: out }];
+    return [new File(file.basename + ".dat", out)];
   });
 
 export default query("assets/txt/*.txt")
@@ -31,5 +31,5 @@ export default query("assets/txt/*.txt")
       .join("\n");
     const out = tmpfile();
     await writeFile(out, basenames);
-    return [{ basename: "manifest.txt", dirname: "", content: out }];
+    return [new File("manifest.txt", out)];
   });

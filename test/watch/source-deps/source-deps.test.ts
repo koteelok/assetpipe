@@ -26,7 +26,7 @@ describe("source-code dependency watching", () => {
     );
 
     const entrySource = `
-import { query, tmpfile } from "@assetpipe/config";
+import { File, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
 import { format } from "../formatter";
@@ -39,7 +39,7 @@ export default query(ASSETS).pipe(async (files) => {
     files.map((f) => readFile(f.content, "utf-8")),
   );
   await writeFile(out, format(parts));
-  return [{ basename: "out.txt", dirname: "", content: out }];
+  return [new File("out.txt", out)];
 });
 `;
     await writeFile(entry, entrySource);
@@ -136,7 +136,7 @@ describe("source-code dependency watching (deep chain)", () => {
     );
 
     const entrySource = `
-import { query, tmpfile } from "@assetpipe/config";
+import { File, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
 import { run } from "./layers/a";
@@ -149,7 +149,7 @@ export default query(ASSETS).pipe(async (files) => {
     files.map((f) => readFile(f.content, "utf-8")),
   );
   await writeFile(out, await run(parts));
-  return [{ basename: "out.txt", dirname: "", content: out }];
+  return [new File("out.txt", out)];
 });
 `;
     await writeFile(entry, entrySource);

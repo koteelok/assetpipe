@@ -1,4 +1,5 @@
 import { context, query, tmpfile } from "@assetpipe/config";
+import { File } from "@assetpipe/core/types";
 import { readFile, writeFile } from "fs/promises";
 
 // context() sets the root directory so inner queries resolve relative to it.
@@ -11,6 +12,6 @@ export default context(
     );
     const out = tmpfile();
     await writeFile(out, texts.sort().join("|"));
-    return [{ basename: "ctx_output.txt", dirname: "", content: out }];
+    return [new File("ctx_output.txt", out)];
   }),
 );

@@ -1,4 +1,4 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { File, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
 
@@ -12,5 +12,5 @@ export default query("assets/**/*.*", { groupBy: (file) => file.dirname })
     const group = path.basename(files[0].dirname || files[0].basename);
     const out = tmpfile();
     await writeFile(out, texts.join("\n"));
-    return [{ basename: `${group}.bundle`, dirname: "", content: out }];
+    return [new File(`${group}.bundle`, out)];
   });

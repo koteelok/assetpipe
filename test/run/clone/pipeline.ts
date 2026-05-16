@@ -21,7 +21,7 @@ const source = query("assets/*.txt", { parallel: true }).pipe(
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
-    return [{ ...file, content: out }];
+    return [file.withContent(out)];
   },
 );
 
@@ -30,7 +30,7 @@ const cloneA = source.clone().pipe(async ([file]) => {
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw + " A");
-  return [{ ...file, basename: file.basename + ".a", content: out }];
+  return [file.withBasename(file.basename + ".a").withContent(out)];
 });
 
 const cloneB = source.clone().pipe(async ([file]) => {
@@ -38,7 +38,7 @@ const cloneB = source.clone().pipe(async ([file]) => {
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw + " B");
-  return [{ ...file, basename: file.basename + ".b", content: out }];
+  return [file.withBasename(file.basename + ".b").withContent(out)];
 });
 
 export default group(cloneA, cloneB);

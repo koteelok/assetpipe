@@ -1,4 +1,4 @@
-import { group, query, tmpfile } from "@assetpipe/config";
+import { File, group, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 
 // Two sibling pipelines combined with group().
@@ -11,7 +11,7 @@ const txtPipeline = query("assets/txt/*.txt").pipe(async (files) => {
   );
   const out = tmpfile();
   await writeFile(out, texts.join("|"));
-  return [{ basename: "texts.txt", dirname: "", content: out }];
+  return [new File("texts.txt", out)];
 });
 
 const jsonPipeline = query("assets/json/*.json").pipe(async (files) => {
@@ -20,7 +20,7 @@ const jsonPipeline = query("assets/json/*.json").pipe(async (files) => {
   );
   const out = tmpfile();
   await writeFile(out, texts.join("|"));
-  return [{ basename: "jsons.txt", dirname: "", content: out }];
+  return [new File("jsons.txt", out)];
 });
 
 export default group(txtPipeline, jsonPipeline);

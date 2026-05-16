@@ -1,4 +1,4 @@
-import { context, group, query, tmpfile } from "@assetpipe/config";
+import { File, context, group, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 
 export default context(
@@ -11,7 +11,7 @@ export default context(
       );
       const out = tmpfile();
       await writeFile(out, `[${texts[0]}]`);
-      return [{ basename: "a.txt", dirname: "", content: out }];
+      return [new File("a.txt", out)];
     }),
     query("b.txt").pipe(async (files) => {
       const texts = await Promise.all(
@@ -19,7 +19,7 @@ export default context(
       );
       const out = tmpfile();
       await writeFile(out, `(${texts[0]})`);
-      return [{ basename: "b.txt", dirname: "", content: out }];
+      return [new File("b.txt", out)];
     }),
     query("c.txt").pipe(async (files) => {
       const texts = await Promise.all(
@@ -27,7 +27,7 @@ export default context(
       );
       const out = tmpfile();
       await writeFile(out, `{${texts[0]}}`);
-      return [{ basename: "c.txt", dirname: "", content: out }];
+      return [new File("c.txt", out)];
     }),
   ).pipe(async (files) => {
     const texts = await Promise.all(
@@ -35,6 +35,6 @@ export default context(
     );
     const out = tmpfile();
     await writeFile(out, texts.sort().join("|"));
-    return [{ basename: "ctx_output.txt", dirname: "", content: out }];
+    return [new File("ctx_output.txt", out)];
   }),
 );

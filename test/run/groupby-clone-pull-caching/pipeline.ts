@@ -12,7 +12,7 @@ const masks = query("assets/masks/*.txt", { parallel: true }).pipe(
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw);
-    return [{ ...file, content: out }];
+    return [file.withContent(out)];
   },
 );
 
@@ -20,7 +20,7 @@ export default query("assets/tiles/*.{tile,meta}", {
   groupBy: (file) => file.basename.split(".")[0],
 })
   .pipe((files) => (files.length === 2 ? files : []))
-  .pull(masks.clone().pipe((files) => files.map((f) => ({ ...f, dirname: "__masks__" }))))
+  .pull(masks.clone().pipe((files) => files.map((f) => f.withDirname("__masks__"))))
   .pipe(async (files) => {
     let tileFile: File | undefined;
     let metaFile: File | undefined;
@@ -42,18 +42,11 @@ export default query("assets/tiles/*.{tile,meta}", {
     const metaText = await readFile(metaFile.content, "utf-8");
     const maskTexts = await Promise.all(
       maskFiles
-        .slice()
-        .sort((a, b) => (a.basename > b.basename ? 1 : -1))
+        .toSorted((a, b) => (a.basename > b.basename ? 1 : -1))
         .map((m) => readFile(m.content, "utf-8")),
     );
 
     const out = tmpfile();
     await writeFile(out, `${tileText}|${metaText}|${maskTexts.join(",")}`);
-    return [
-      {
-        basename: tileFile.basename.replace(".tile", ".out"),
-        dirname: "",
-        content: out,
-      },
-    ];
+    return [new File(tileFile.basename.replace(".tile", ".out"), out)];
   });

@@ -21,7 +21,7 @@ const source = query("assets/*.txt", { parallel: true }).pipe(
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
-    return [{ ...file, content: out }];
+    return [file.withContent(out)];
   },
 );
 
@@ -37,7 +37,7 @@ const final = source
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw + "/triple");
-    return [{ ...file, basename: file.basename + ".out", content: out }];
+    return [file.withBasename(file.basename + ".out").withContent(out)];
   });
 
 export default final;

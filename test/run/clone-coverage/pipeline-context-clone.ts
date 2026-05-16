@@ -1,4 +1,4 @@
-import { context, query, tmpfile } from "@assetpipe/config";
+import { File, context, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { resolve } from "path";
 
@@ -20,7 +20,7 @@ const inner = query("*.txt", { parallel: true }).pipe(async ([file]) => {
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw.toUpperCase());
-  return [{ ...file, content: out }];
+  return [file.withContent(out)];
 });
 
 // Clone of a context pipeline must produce a usable pipeline whose source is
@@ -29,9 +29,9 @@ const ctx = context("assets/nested", inner);
 
 const cloned = ctx.clone().pipe(async (files) => {
   await bumpCounter("ctx-clone");
-  const sorted = files
-    .slice()
-    .sort((a, b) => (a.basename > b.basename ? 1 : -1));
+  const sorted = files.toSorted((a, b) =>
+    a.basename > b.basename ? 1 : -1,
+  );
   const joined = await Promise.all(
     sorted.map(async (f) => {
       const raw = await readFile(f.content, "utf-8");
@@ -40,7 +40,7 @@ const cloned = ctx.clone().pipe(async (files) => {
   );
   const out = tmpfile();
   await writeFile(out, joined.join(","));
-  return [{ basename: "ctx-out.txt", dirname: "", content: out }];
+  return [new File("ctx-out.txt", out)];
 });
 
 export default cloned;
