@@ -1,5 +1,6 @@
 import { File, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
+import { posix } from "path";
 
 // Mirrors the user-reported scenario:
 //   - a groupBy query
@@ -17,21 +18,30 @@ const masks = query("assets/masks/*.txt", { parallel: true }).pipe(
 );
 
 export default query("assets/tiles/*.{tile,meta}", {
-  groupBy: (file) => file.basename.split(".")[0],
+  groupBy: (file) => posix.basename(file.target).split(".")[0],
 })
   .pipe((files) => (files.length === 2 ? files : []))
-  .pull(masks.clone().pipe((files) => files.map((f) => ({ ...f, dirname: "__masks__" }))))
+  .pull(
+    masks
+      .clone()
+      .pipe((files) =>
+        files.map((f) => ({
+          ...f,
+          target: posix.join("__masks__", posix.basename(f.target)),
+        })),
+      ),
+  )
   .pipe(async (files) => {
     let tileFile: File | undefined;
     let metaFile: File | undefined;
     const maskFiles: File[] = [];
 
     for (const file of files) {
-      if (file.dirname === "__masks__") {
+      if (posix.dirname(file.target) === "__masks__") {
         maskFiles.push(file);
-      } else if (file.basename.endsWith(".tile")) {
+      } else if (file.target.endsWith(".tile")) {
         tileFile = file;
-      } else if (file.basename.endsWith(".meta")) {
+      } else if (file.target.endsWith(".meta")) {
         metaFile = file;
       }
     }
@@ -43,7 +53,7 @@ export default query("assets/tiles/*.{tile,meta}", {
     const maskTexts = await Promise.all(
       maskFiles
         .slice()
-        .sort((a, b) => (a.basename > b.basename ? 1 : -1))
+        .sort((a, b) => (a.target > b.target ? 1 : -1))
         .map((m) => readFile(m.content, "utf-8")),
     );
 
@@ -51,8 +61,7 @@ export default query("assets/tiles/*.{tile,meta}", {
     await writeFile(out, `${tileText}|${metaText}|${maskTexts.join(",")}`);
     return [
       {
-        basename: tileFile.basename.replace(".tile", ".out"),
-        dirname: "",
+        target: tileFile.target.replace(".tile", ".out"),
         content: out,
       },
     ];

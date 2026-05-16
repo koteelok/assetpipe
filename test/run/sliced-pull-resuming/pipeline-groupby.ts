@@ -1,6 +1,6 @@
 import { query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { resolve } from "path";
+import { posix, resolve } from "path";
 
 const counterDir = resolve(__dirname, "counters");
 
@@ -24,39 +24,41 @@ const extras = query("assets/extras/*.txt").pipe(async (files) => {
     .join("|");
   const out = tmpfile();
   await writeFile(out, joined);
-  return [{ basename: "extras.bundle", dirname: "__extras__", content: out }];
+  return [{ target: "__extras__/extras.bundle", content: out }];
 });
 
 export default query("assets/main/*.{a,b}", {
-  groupBy: (file) => file.basename.split(".")[0],
+  groupBy: (file) => posix.basename(file.target).split(".")[0],
 })
   .pipe(async (files) => {
-    const tag = files.find((f) => f.dirname !== "__extras__")!.basename.split(
-      ".",
-    )[0];
+    const tag = posix
+      .basename(
+        files.find((f) => posix.dirname(f.target) !== "__extras__")!.target,
+      )
+      .split(".")[0];
     await bumpCounter("pre-" + tag);
     const sorted = files
       .slice()
-      .sort((a, b) => (a.basename > b.basename ? 1 : -1));
+      .sort((a, b) => (a.target > b.target ? 1 : -1));
     const joined = await Promise.all(
       sorted.map(async (f) => {
         const raw = await readFile(f.content, "utf-8");
-        return f.basename + "=" + raw.toUpperCase();
+        return posix.basename(f.target) + "=" + raw.toUpperCase();
       }),
     );
     const out = tmpfile();
     await writeFile(out, joined.join(","));
-    return [{ basename: tag + ".pre", dirname: "", content: out }];
+    return [{ target: tag + ".pre", content: out }];
   })
   .pull(extras)
   .pipe(async (files) => {
-    const main = files.find((f) => f.dirname !== "__extras__")!;
-    const extra = files.find((f) => f.dirname === "__extras__");
-    const tag = main.basename.split(".")[0];
+    const main = files.find((f) => posix.dirname(f.target) !== "__extras__")!;
+    const extra = files.find((f) => posix.dirname(f.target) === "__extras__");
+    const tag = posix.basename(main.target).split(".")[0];
     await bumpCounter("post-" + tag);
     const mainRaw = await readFile(main.content, "utf-8");
     const extraRaw = extra ? await readFile(extra.content, "utf-8") : "";
     const out = tmpfile();
     await writeFile(out, mainRaw + "+" + extraRaw);
-    return [{ basename: tag + ".out", dirname: "", content: out }];
+    return [{ target: tag + ".out", content: out }];
   });

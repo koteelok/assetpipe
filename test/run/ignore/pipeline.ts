@@ -7,12 +7,12 @@ const ignorePipeline = ignore("assets/excluded/**/*");
 
 const contentPipeline = query("assets/**/*.*").pipe(async (files) => {
   const names = files
-    .map((f) => f.basename)
+    .map((f) => f.target)
     .sort()
     .join("\n");
   const out = tmpfile();
   await writeFile(out, names);
-  return [{ basename: "filelist.txt", dirname: "", content: out }];
+  return [{ target: "filelist.txt", content: out }];
 });
 
 export default group(ignorePipeline, contentPipeline);

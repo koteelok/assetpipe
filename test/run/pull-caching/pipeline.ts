@@ -8,8 +8,7 @@ async function jsonjoin(files: File[]): Promise<File[]> {
       const out = tmpfile();
       await writeFile(out, array.join(""));
       return {
-        basename: file.basename.replace("json", "txt"),
-        dirname: file.dirname,
+        target: file.target.replace("json", "txt"),
         content: out,
       };
     }),
@@ -24,16 +23,16 @@ export default group(
     .pull(chunksPipeline)
     .pipe(async (files) => {
       const text1 = await readFile(
-        files.find((file) => file.basename.startsWith("1"))!.content,
+        files.find((file) => file.target.startsWith("1"))!.content,
         "utf-8",
       );
       const text2 = await readFile(
-        files.find((file) => file.basename.startsWith("2"))!.content,
+        files.find((file) => file.target.startsWith("2"))!.content,
         "utf-8",
       );
       const out = tmpfile();
       await writeFile(out, `${text1}${text2}${text1}`);
-      return [{ basename: `2.txt`, dirname: "", content: out }];
+      return [{ target: `2.txt`, content: out }];
     }),
 
   group()
@@ -44,17 +43,17 @@ export default group(
         text.split("").map(async (char) => {
           const out = tmpfile();
           await writeFile(out, `[${char}]`);
-          return { basename: `1_${char}.txt`, dirname: "", content: out };
+          return { target: `1_${char}.txt`, content: out };
         }),
       );
     }),
 ).pipe(async (files) => {
   const texts = await Promise.all(
     files
-      .sort((a, b) => (a.basename > b.basename ? 1 : -1))
+      .sort((a, b) => (a.target > b.target ? 1 : -1))
       .map((file) => readFile(file.content, "utf-8")),
   );
   const out = tmpfile();
   await writeFile(out, texts.join("\n"));
-  return [{ basename: `bundle.txt`, dirname: "", content: out }];
+  return [{ target: `bundle.txt`, content: out }];
 });

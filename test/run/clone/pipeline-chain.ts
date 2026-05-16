@@ -17,7 +17,7 @@ async function bumpCounter(name: string) {
 
 const source = query("assets/*.txt", { parallel: true }).pipe(
   async ([file]) => {
-    await bumpCounter("source-" + file.basename);
+    await bumpCounter("source-" + file.target);
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
@@ -26,7 +26,7 @@ const source = query("assets/*.txt", { parallel: true }).pipe(
 );
 
 const first = source.clone().pipe(async ([file]) => {
-  await bumpCounter("first-" + file.basename);
+  await bumpCounter("first-" + file.target);
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw + "/first");
@@ -34,11 +34,11 @@ const first = source.clone().pipe(async ([file]) => {
 });
 
 const second = first.clone().pipe(async ([file]) => {
-  await bumpCounter("second-" + file.basename);
+  await bumpCounter("second-" + file.target);
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw + "/second");
-  return [{ ...file, basename: file.basename + ".chained", content: out }];
+  return [{ ...file, target: file.target + ".chained", content: out }];
 });
 
 export default second;

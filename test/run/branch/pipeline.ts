@@ -10,7 +10,7 @@ async function upper(files: File[]): Promise<File[]> {
       const raw = await readFile(f.content, "utf-8");
       const out = tmpfile();
       await writeFile(out, raw.toUpperCase());
-      return { basename: `upper_${f.basename}`, dirname: "", content: out };
+      return { target: `upper_${f.target}`, content: out };
     }),
   );
 }
@@ -21,7 +21,7 @@ async function lower(files: File[]): Promise<File[]> {
       const raw = await readFile(f.content, "utf-8");
       const out = tmpfile();
       await writeFile(out, raw.toLowerCase());
-      return { basename: `lower_${f.basename}`, dirname: "", content: out };
+      return { target: `lower_${f.target}`, content: out };
     }),
   );
 }

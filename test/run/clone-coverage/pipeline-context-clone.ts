@@ -16,7 +16,7 @@ async function bumpCounter(name: string) {
 }
 
 const inner = query("*.txt", { parallel: true }).pipe(async ([file]) => {
-  await bumpCounter("inner-" + file.basename);
+  await bumpCounter("inner-" + file.target);
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw.toUpperCase());
@@ -31,16 +31,16 @@ const cloned = ctx.clone().pipe(async (files) => {
   await bumpCounter("ctx-clone");
   const sorted = files
     .slice()
-    .sort((a, b) => (a.basename > b.basename ? 1 : -1));
+    .sort((a, b) => (a.target > b.target ? 1 : -1));
   const joined = await Promise.all(
     sorted.map(async (f) => {
       const raw = await readFile(f.content, "utf-8");
-      return f.basename + "=" + raw;
+      return f.target + "=" + raw;
     }),
   );
   const out = tmpfile();
   await writeFile(out, joined.join(","));
-  return [{ basename: "ctx-out.txt", dirname: "", content: out }];
+  return [{ target: "ctx-out.txt", content: out }];
 });
 
 export default cloned;

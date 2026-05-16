@@ -11,7 +11,7 @@ const txtPipeline = query("assets/txt/*.txt").pipe(async (files) => {
   );
   const out = tmpfile();
   await writeFile(out, texts.join("|"));
-  return [{ basename: "texts.txt", dirname: "", content: out }];
+  return [{ target: "texts.txt", content: out }];
 });
 
 const jsonPipeline = query("assets/json/*.json").pipe(async (files) => {
@@ -20,7 +20,7 @@ const jsonPipeline = query("assets/json/*.json").pipe(async (files) => {
   );
   const out = tmpfile();
   await writeFile(out, texts.join("|"));
-  return [{ basename: "jsons.txt", dirname: "", content: out }];
+  return [{ target: "jsons.txt", content: out }];
 });
 
 export default group(txtPipeline, jsonPipeline);

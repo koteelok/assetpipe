@@ -25,12 +25,12 @@ async function concat(
   const parts = await Promise.all(
     files
       .slice()
-      .sort((a, b) => (a.basename > b.basename ? 1 : -1))
+      .sort((a, b) => (a.target > b.target ? 1 : -1))
       .map((f) => readFile(f.content, "utf-8")),
   );
   const out = tmpfile();
   await writeFile(out, parts.join("") + suffix);
-  return { basename: outName, dirname: "", content: out };
+  return { target: outName, content: out };
 }
 
 const registryPipeline = group()

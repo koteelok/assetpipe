@@ -7,23 +7,23 @@ import { writeFile } from "fs/promises";
 
 const claimPipeline = query("assets/*.txt", { claim: true }).pipe(async (files) => {
   const names = files
-    .map((f) => f.basename)
+    .map((f) => f.target)
     .sort()
     .join(",");
   const out = tmpfile();
   await writeFile(out, `claimed:${names}`);
-  return [{ basename: "claimed.txt", dirname: "", content: out }];
+  return [{ target: "claimed.txt", content: out }];
 });
 
 const selectPipeline = query("assets/*.txt")
   .pipe(async (files) => {
     const names = files
-      .map((f) => f.basename)
+      .map((f) => f.target)
       .sort()
       .join(",");
     const out = tmpfile();
     await writeFile(out, `selected:${names}`);
-    return [{ basename: "selected.txt", dirname: "", content: out }];
+    return [{ target: "selected.txt", content: out }];
   });
 
 export default group(claimPipeline, selectPipeline);

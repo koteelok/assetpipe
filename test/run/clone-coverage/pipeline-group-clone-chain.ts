@@ -17,7 +17,7 @@ async function bumpCounter(name: string) {
 
 const left = query("assets/left/*.txt", { parallel: true }).pipe(
   async ([file]) => {
-    await bumpCounter("left-" + file.basename);
+    await bumpCounter("left-" + file.target);
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
@@ -27,7 +27,7 @@ const left = query("assets/left/*.txt", { parallel: true }).pipe(
 
 const right = query("assets/right/*.txt", { parallel: true }).pipe(
   async ([file]) => {
-    await bumpCounter("right-" + file.basename);
+    await bumpCounter("right-" + file.target);
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
@@ -42,7 +42,7 @@ const step1 = combined.clone().pipe(async (files) => {
   await bumpCounter("step1");
   const sorted = files
     .slice()
-    .sort((a, b) => (a.basename > b.basename ? 1 : -1));
+    .sort((a, b) => (a.target > b.target ? 1 : -1));
   const joined = await Promise.all(
     sorted.map(async (f) => {
       const raw = await readFile(f.content, "utf-8");
@@ -51,7 +51,7 @@ const step1 = combined.clone().pipe(async (files) => {
   );
   const out = tmpfile();
   await writeFile(out, joined.join(","));
-  return [{ basename: "step1.txt", dirname: "", content: out }];
+  return [{ target: "step1.txt", content: out }];
 });
 
 const step2 = step1.clone().pipe(async (files) => {
@@ -59,7 +59,7 @@ const step2 = step1.clone().pipe(async (files) => {
   const raw = await readFile(files[0].content, "utf-8");
   const out = tmpfile();
   await writeFile(out, "<" + raw + ">");
-  return [{ basename: "step2.txt", dirname: "", content: out }];
+  return [{ target: "step2.txt", content: out }];
 });
 
 const step3 = step2.clone().pipe(async (files) => {
@@ -67,7 +67,7 @@ const step3 = step2.clone().pipe(async (files) => {
   const raw = await readFile(files[0].content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw + "!");
-  return [{ basename: "step3.txt", dirname: "", content: out }];
+  return [{ target: "step3.txt", content: out }];
 });
 
 export default step3;

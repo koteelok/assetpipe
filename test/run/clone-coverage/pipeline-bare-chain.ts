@@ -17,7 +17,7 @@ async function bumpCounter(name: string) {
 
 const source = query("assets/*.txt", { parallel: true }).pipe(
   async ([file]) => {
-    await bumpCounter("source-" + file.basename);
+    await bumpCounter("source-" + file.target);
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
@@ -33,11 +33,11 @@ const final = source
   .clone()
   .clone()
   .pipe(async ([file]) => {
-    await bumpCounter("final-" + file.basename);
+    await bumpCounter("final-" + file.target);
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw + "/triple");
-    return [{ ...file, basename: file.basename + ".out", content: out }];
+    return [{ ...file, target: file.target + ".out", content: out }];
   });
 
 export default final;

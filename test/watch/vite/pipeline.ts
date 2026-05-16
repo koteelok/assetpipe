@@ -9,8 +9,7 @@ export default query(ASSETS, { parallel: true }).pipe(async ([file]) => {
   await writeFile(out, await readFile(file.content, "utf-8"));
   return [
     {
-      basename: file.basename,
-      dirname: "",
+      target: file.target,
       content: out,
     },
   ];

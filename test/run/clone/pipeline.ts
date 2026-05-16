@@ -17,7 +17,7 @@ async function bumpCounter(name: string) {
 
 const source = query("assets/*.txt", { parallel: true }).pipe(
   async ([file]) => {
-    await bumpCounter("source-" + file.basename);
+    await bumpCounter("source-" + file.target);
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
@@ -26,19 +26,19 @@ const source = query("assets/*.txt", { parallel: true }).pipe(
 );
 
 const cloneA = source.clone().pipe(async ([file]) => {
-  await bumpCounter("cloneA-" + file.basename);
+  await bumpCounter("cloneA-" + file.target);
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw + " A");
-  return [{ ...file, basename: file.basename + ".a", content: out }];
+  return [{ ...file, target: file.target + ".a", content: out }];
 });
 
 const cloneB = source.clone().pipe(async ([file]) => {
-  await bumpCounter("cloneB-" + file.basename);
+  await bumpCounter("cloneB-" + file.target);
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw + " B");
-  return [{ ...file, basename: file.basename + ".b", content: out }];
+  return [{ ...file, target: file.target + ".b", content: out }];
 });
 
 export default group(cloneA, cloneB);

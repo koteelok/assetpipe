@@ -22,7 +22,7 @@ const source = query("assets/*.txt").pipe(async (files) => {
   );
   const out = tmpfile();
   await writeFile(out, texts.sort().join(","));
-  return [{ basename: "joined.txt", dirname: "", content: out }];
+  return [{ target: "joined.txt", content: out }];
 });
 
 export default source.clone().pipe(async (files) => {
@@ -30,5 +30,5 @@ export default source.clone().pipe(async (files) => {
   const raw = await readFile(files[0].content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw.toUpperCase());
-  return [{ basename: "joined.upper.txt", dirname: "", content: out }];
+  return [{ target: "joined.upper.txt", content: out }];
 });

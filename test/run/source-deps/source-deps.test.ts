@@ -42,7 +42,7 @@ export default query(ASSETS).pipe(async (files) => {
     files.map((f) => readFile(f.content, "utf-8")),
   );
   await writeFile(out, format(parts));
-  return [{ basename: "out.txt", dirname: "", content: out }];
+  return [{ target: "out.txt", content: out }];
 });
 `,
     );
@@ -134,7 +134,7 @@ export default query(ASSETS).pipe(async (files) => {
     files.map((f) => readFile(f.content, "utf-8")),
   );
   await writeFile(out, transform(parts));
-  return [{ basename: "out.txt", dirname: "", content: out }];
+  return [{ target: "out.txt", content: out }];
 });
 `,
     );

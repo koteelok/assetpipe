@@ -7,5 +7,5 @@ export default query("assets/txt/*.txt", { parallel: true }).pipe(async ([file])
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw.toUpperCase());
-  return [{ basename: file.basename + ".out", dirname: "", content: out }];
+  return [{ target: file.target + ".out", content: out }];
 });

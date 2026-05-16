@@ -12,8 +12,7 @@ export default query("assets/*").pipe(async (files) => {
 
   return [
     {
-      basename: "file.txt",
-      dirname: "",
+      target: "file.txt",
       content,
     },
   ];
