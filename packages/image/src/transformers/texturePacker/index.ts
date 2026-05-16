@@ -1,7 +1,5 @@
-import { posix } from "node:path";
-
 import { File, Transformer } from "@assetpipe/core/types";
-import { tmpfile } from "@assetpipe/config";
+import { path, tmpfile } from "@assetpipe/config";
 import sharp from "sharp";
 
 import { IMAGE_EXTENSIONS } from "../../utils/imageFormat";
@@ -23,7 +21,7 @@ export function texturePacker(options?: TexturePackerOptions): Transformer {
             return;
           }
         } else {
-          if (!IMAGE_EXTENSIONS.has(posix.extname(file.target))) {
+          if (!IMAGE_EXTENSIONS.has(path.extname(file))) {
             output.push(file);
             return;
           }

@@ -1,11 +1,12 @@
 import { mkdir, readFile } from "node:fs/promises";
-import path from "node:path";
+import nodePath from "node:path";
 
 import {
   type ExecutionMetadata,
   PipelineWatcher,
   run,
 } from "@assetpipe/core/runtime";
+import { path } from "@assetpipe/config";
 import type { File } from "@assetpipe/core/types";
 import sirv from "sirv";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
@@ -137,7 +138,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
     pipelineFileMap.clear();
 
     files.forEach((file) => {
-      pipelineFileMap.set(path.posix.join("/", file.target), file);
+      pipelineFileMap.set(path.join("/", file), file);
     });
 
     currentOutputFiles = files;
@@ -258,7 +259,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
         const source = await readFile(file.content);
         const refId = this.emitFile({
           type: "asset",
-          name: path.basename(file.content),
+          name: nodePath.basename(file.content),
           source,
         });
         return {
@@ -302,8 +303,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
             const environments = Object.values(server.environments);
 
             const invalidateFile = (file: File) => {
-              const key = path.posix.join("/", file.target);
-              const moduleIds = pipelineModuleIds.get(key);
+              const moduleIds = pipelineModuleIds.get(path.join("/", file));
               if (!moduleIds) return;
 
               moduleIds.forEach((moduleId) => {
@@ -320,8 +320,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
             metadata.changedFiles.forEach(invalidateFile);
             metadata.removedFiles.forEach((file) => {
               invalidateFile(file);
-              const key = path.posix.join("/", file.target);
-              pipelineModuleIds.delete(key);
+              pipelineModuleIds.delete(path.join("/", file));
             });
 
             for (const resolvedId of resolvedImportsById.keys()) {

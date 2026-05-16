@@ -1,6 +1,5 @@
 import { File, Transformer } from "@assetpipe/core/types";
-import { tmpfile } from "@assetpipe/config";
-import { posix } from "path";
+import { path, tmpfile } from "@assetpipe/config";
 import sharp, { OutputInfo, Region } from "sharp";
 
 import { ArrayOr } from "../types";
@@ -168,7 +167,7 @@ export function extractTiles(_options: ExtractTilesOptions): Transformer {
             return;
           }
         } else {
-          if (!IMAGE_EXTENSIONS.has(posix.extname(file.target))) {
+          if (!IMAGE_EXTENSIONS.has(path.extname(file))) {
             resultFiles.push(file);
             return;
           }
@@ -315,27 +314,23 @@ export function extractTiles(_options: ExtractTilesOptions): Transformer {
                     .toFile(output, (err) => {
                       if (err) throw err;
 
-                      let basename: string;
-                      const sourceBasename = posix.basename(file.target);
+                      let tileName: string;
+                      const sourceBasename = path.basename(file);
 
                       if (options.tileBasename !== undefined) {
-                        basename = options.tileBasename({
+                        tileName = options.tileBasename({
                           source: file,
                           region,
                           sourceInfo: raw.info,
                           tileSize,
                         });
                       } else {
-                        const extension = posix.extname(sourceBasename);
-                        basename = `${sourceBasename.replace(extension, "")}_${left}_${top}${extension}`;
+                        const extension = path.extname(sourceBasename);
+                        tileName = `${sourceBasename.replace(extension, "")}_${left}_${top}${extension}`;
                       }
 
-                      const sourceDir = posix.dirname(file.target);
                       resultFiles.push({
-                        target:
-                          sourceDir === "."
-                            ? basename
-                            : posix.join(sourceDir, basename),
+                        target: path.rename(file, tileName),
                         content: output,
                       });
 

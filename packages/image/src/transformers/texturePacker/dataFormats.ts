@@ -1,7 +1,6 @@
 import { File } from "@assetpipe/core/types";
-import { tmpfile } from "@assetpipe/config";
+import { path, tmpfile } from "@assetpipe/config";
 import { writeFile } from "fs/promises";
-import { posix } from "path";
 
 import { MaybePromise } from "../../types";
 import { ResolvedOptions } from "./options";
@@ -17,7 +16,7 @@ const raw: DataFormatFunction = async (atlas, options) => {
   await writeFile(output, JSON.stringify(atlas));
   return [
     {
-      target: posix.join(options.output, `${atlas.name}.json`),
+      target: path.join(options.output, `${atlas.name}.json`),
       content: output,
     },
   ];
@@ -58,7 +57,7 @@ const TexturePacker: DataFormatFunction = async (atlas, options) => {
       }, {} as any),
 
       meta: {
-        image: posix.basename(atlas.images[0].target),
+        image: path.basename(atlas.images[0]),
         size: { w: atlas.width, h: atlas.height },
         scale: "1",
       },
@@ -66,7 +65,7 @@ const TexturePacker: DataFormatFunction = async (atlas, options) => {
   );
   return [
     {
-      target: posix.join(options.output, `${atlas.name}.json`),
+      target: path.join(options.output, `${atlas.name}.json`),
       content: output,
     },
   ];
