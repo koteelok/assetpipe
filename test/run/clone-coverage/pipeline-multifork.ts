@@ -1,6 +1,6 @@
-import { group, query, tmpfile } from "@assetpipe/config";
+import { group, path, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { posix, resolve } from "path";
+import { resolve } from "path";
 
 const counterDir = resolve(__dirname, "counters");
 
@@ -17,7 +17,7 @@ async function bumpCounter(name: string) {
 
 const source = query("assets/*.txt", { parallel: true }).pipe(
   async ([file]) => {
-    await bumpCounter("source-" + file.target);
+    await bumpCounter("source-" + path.basename(file));
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
@@ -27,12 +27,12 @@ const source = query("assets/*.txt", { parallel: true }).pipe(
 
 function makeChild(parent: typeof source, tag: string) {
   return parent.clone().pipe(async ([file]) => {
-    const basename = posix.basename(file.target);
-    await bumpCounter(tag + "-" + basename);
+    const name = path.basename(file);
+    await bumpCounter(tag + "-" + name);
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw + "/" + tag);
-    return [{ target: posix.join(tag, basename), content: out }];
+    return [{ target: path.join(tag, name), content: out }];
   });
 }
 

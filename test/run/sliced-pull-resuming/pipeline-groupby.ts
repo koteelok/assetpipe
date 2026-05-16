@@ -1,6 +1,6 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { path, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { posix, resolve } from "path";
+import { resolve } from "path";
 
 const counterDir = resolve(__dirname, "counters");
 
@@ -28,14 +28,12 @@ const extras = query("assets/extras/*.txt").pipe(async (files) => {
 });
 
 export default query("assets/main/*.{a,b}", {
-  groupBy: (file) => posix.basename(file.target).split(".")[0],
+  groupBy: (file) => path.basename(file).split(".")[0],
 })
   .pipe(async (files) => {
-    const tag = posix
-      .basename(
-        files.find((f) => posix.dirname(f.target) !== "__extras__")!.target,
-      )
-      .split(".")[0];
+    const tag = path.basename(
+      files.find((f) => path.dirname(f) !== "__extras__")!,
+    ).split(".")[0];
     await bumpCounter("pre-" + tag);
     const sorted = files
       .slice()
@@ -43,7 +41,7 @@ export default query("assets/main/*.{a,b}", {
     const joined = await Promise.all(
       sorted.map(async (f) => {
         const raw = await readFile(f.content, "utf-8");
-        return posix.basename(f.target) + "=" + raw.toUpperCase();
+        return path.basename(f) + "=" + raw.toUpperCase();
       }),
     );
     const out = tmpfile();
@@ -52,9 +50,9 @@ export default query("assets/main/*.{a,b}", {
   })
   .pull(extras)
   .pipe(async (files) => {
-    const main = files.find((f) => posix.dirname(f.target) !== "__extras__")!;
-    const extra = files.find((f) => posix.dirname(f.target) === "__extras__");
-    const tag = posix.basename(main.target).split(".")[0];
+    const main = files.find((f) => path.dirname(f) !== "__extras__")!;
+    const extra = files.find((f) => path.dirname(f) === "__extras__");
+    const tag = path.basename(main).split(".")[0];
     await bumpCounter("post-" + tag);
     const mainRaw = await readFile(main.content, "utf-8");
     const extraRaw = extra ? await readFile(extra.content, "utf-8") : "";

@@ -1,11 +1,11 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { path, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { posix, resolve } from "path";
+import { resolve } from "path";
 
 export default query("assets/**/*.txt", {
-  groupBy: (file) => posix.dirname(file.target),
+  groupBy: (file) => path.dirname(file),
 }).pipe(async (files) => {
-  const tag = posix.dirname(files[0].target);
+  const tag = path.dirname(files[0]);
   const counterDir = resolve(__dirname, "counters");
   await mkdir(counterDir, { recursive: true });
   const counterFile = resolve(counterDir, tag + ".json");

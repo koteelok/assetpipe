@@ -1,4 +1,4 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { path, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 
 // The txt pipeline processes each .txt file and adds a .proc extension.
@@ -26,7 +26,7 @@ export default query("assets/txt/*.txt")
   .pull(txtPipeline, jsonPipeline)
   .pipe(async (files) => {
     const basenames = files
-      .map((f) => f.target)
+      .map((f) => path.basename(f))
       .sort()
       .join("\n");
     const out = tmpfile();

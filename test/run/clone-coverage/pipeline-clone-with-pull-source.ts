@@ -1,4 +1,4 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { path, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { resolve } from "path";
 
@@ -40,7 +40,7 @@ const source = query("assets/main/*.txt")
     const joined = await Promise.all(
       sorted.map(async (f) => {
         const raw = await readFile(f.content, "utf-8");
-        return f.target + "=" + raw;
+        return path.basename(f) + "=" + raw;
       }),
     );
     const out = tmpfile();

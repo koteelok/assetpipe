@@ -1,4 +1,4 @@
-import { group, query, tmpfile } from "@assetpipe/config";
+import { group, path, query, tmpfile } from "@assetpipe/config";
 import { writeFile } from "fs/promises";
 
 // query with claim takes ownership of *.txt files.
@@ -7,7 +7,7 @@ import { writeFile } from "fs/promises";
 
 const claimPipeline = query("assets/*.txt", { claim: true }).pipe(async (files) => {
   const names = files
-    .map((f) => f.target)
+    .map((f) => path.basename(f))
     .sort()
     .join(",");
   const out = tmpfile();
@@ -18,7 +18,7 @@ const claimPipeline = query("assets/*.txt", { claim: true }).pipe(async (files) 
 const selectPipeline = query("assets/*.txt")
   .pipe(async (files) => {
     const names = files
-      .map((f) => f.target)
+      .map((f) => path.basename(f))
       .sort()
       .join(",");
     const out = tmpfile();

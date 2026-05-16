@@ -1,6 +1,6 @@
-import { query, tmpfile } from "@assetpipe/config";
+import { path, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { posix, resolve } from "path";
+import { resolve } from "path";
 
 const counterDir = resolve(__dirname, "counters");
 
@@ -29,7 +29,7 @@ const extras = query("assets/extras/*.txt").pipe(async (files) => {
 
 export default query("assets/main/*.txt", { parallel: true })
   .pipe(async ([file]) => {
-    await bumpCounter("pre-" + file.target);
+    await bumpCounter("pre-" + path.basename(file));
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
@@ -37,9 +37,9 @@ export default query("assets/main/*.txt", { parallel: true })
   })
   .pull(extras)
   .pipe(async (files) => {
-    const main = files.find((f) => posix.dirname(f.target) !== "__extras__")!;
-    const extra = files.find((f) => posix.dirname(f.target) === "__extras__");
-    await bumpCounter("post-" + main.target);
+    const main = files.find((f) => path.dirname(f) !== "__extras__")!;
+    const extra = files.find((f) => path.dirname(f) === "__extras__");
+    await bumpCounter("post-" + path.basename(main));
     const mainRaw = await readFile(main.content, "utf-8");
     const extraRaw = extra ? await readFile(extra.content, "utf-8") : "";
     const out = tmpfile();

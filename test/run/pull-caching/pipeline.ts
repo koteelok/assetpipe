@@ -1,4 +1,4 @@
-import { File, group, query, tmpfile } from "@assetpipe/config";
+import { File, group, path, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
 
 async function jsonjoin(files: File[]): Promise<File[]> {
@@ -23,11 +23,11 @@ export default group(
     .pull(chunksPipeline)
     .pipe(async (files) => {
       const text1 = await readFile(
-        files.find((file) => file.target.startsWith("1"))!.content,
+        files.find((file) => path.basename(file).startsWith("1"))!.content,
         "utf-8",
       );
       const text2 = await readFile(
-        files.find((file) => file.target.startsWith("2"))!.content,
+        files.find((file) => path.basename(file).startsWith("2"))!.content,
         "utf-8",
       );
       const out = tmpfile();

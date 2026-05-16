@@ -1,4 +1,4 @@
-import { group, ignore, query, tmpfile } from "@assetpipe/config";
+import { group, ignore, path, query, tmpfile } from "@assetpipe/config";
 import { writeFile } from "fs/promises";
 
 // ignore() marks assets/excluded/** so those files are hidden from all other pipelines.
@@ -7,7 +7,7 @@ const ignorePipeline = ignore("assets/excluded/**/*");
 
 const contentPipeline = query("assets/**/*.*").pipe(async (files) => {
   const names = files
-    .map((f) => f.target)
+    .map((f) => path.basename(f))
     .sort()
     .join("\n");
   const out = tmpfile();

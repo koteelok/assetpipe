@@ -1,4 +1,4 @@
-import { group, query, tmpfile } from "@assetpipe/config";
+import { group, path, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { resolve } from "path";
 
@@ -17,7 +17,7 @@ async function bumpCounter(name: string) {
 
 const source = query("assets/*.txt", { parallel: true }).pipe(
   async ([file]) => {
-    await bumpCounter("source-" + file.target);
+    await bumpCounter("source-" + path.basename(file));
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
@@ -26,7 +26,7 @@ const source = query("assets/*.txt", { parallel: true }).pipe(
 );
 
 const cloneA = source.clone().pipe(async ([file]) => {
-  await bumpCounter("cloneA-" + file.target);
+  await bumpCounter("cloneA-" + path.basename(file));
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw + " A");
@@ -34,7 +34,7 @@ const cloneA = source.clone().pipe(async ([file]) => {
 });
 
 const cloneB = source.clone().pipe(async ([file]) => {
-  await bumpCounter("cloneB-" + file.target);
+  await bumpCounter("cloneB-" + path.basename(file));
   const raw = await readFile(file.content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw + " B");

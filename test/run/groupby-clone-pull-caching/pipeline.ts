@@ -1,6 +1,5 @@
-import { File, query, tmpfile } from "@assetpipe/config";
+import { File, path, query, tmpfile } from "@assetpipe/config";
 import { readFile, writeFile } from "fs/promises";
-import { posix } from "path";
 
 // Mirrors the user-reported scenario:
 //   - a groupBy query
@@ -18,7 +17,7 @@ const masks = query("assets/masks/*.txt", { parallel: true }).pipe(
 );
 
 export default query("assets/tiles/*.{tile,meta}", {
-  groupBy: (file) => posix.basename(file.target).split(".")[0],
+  groupBy: (file) => path.basename(file).split(".")[0],
 })
   .pipe((files) => (files.length === 2 ? files : []))
   .pull(
@@ -27,7 +26,7 @@ export default query("assets/tiles/*.{tile,meta}", {
       .pipe((files) =>
         files.map((f) => ({
           ...f,
-          target: posix.join("__masks__", posix.basename(f.target)),
+          target: path.join("__masks__", path.basename(f)),
         })),
       ),
   )
@@ -37,11 +36,11 @@ export default query("assets/tiles/*.{tile,meta}", {
     const maskFiles: File[] = [];
 
     for (const file of files) {
-      if (posix.dirname(file.target) === "__masks__") {
+      if (path.dirname(file) === "__masks__") {
         maskFiles.push(file);
-      } else if (file.target.endsWith(".tile")) {
+      } else if (path.extname(file) === ".tile") {
         tileFile = file;
-      } else if (file.target.endsWith(".meta")) {
+      } else if (path.extname(file) === ".meta") {
         metaFile = file;
       }
     }
