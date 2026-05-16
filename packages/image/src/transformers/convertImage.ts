@@ -1,4 +1,4 @@
-import { extname } from "node:path";
+import { posix } from "node:path";
 
 import { File, Transformer } from "@assetpipe/core/types";
 import { tmpfile } from "@assetpipe/config";
@@ -32,12 +32,12 @@ export function convertImage(options: ConvertImageOptions): Transformer {
         if (options.isImageFile !== undefined) {
           if (!options.isImageFile(file)) return;
         } else {
-          if (!IMAGE_EXTENSIONS.has(extname(file.basename))) return;
+          if (!IMAGE_EXTENSIONS.has(posix.extname(file.target))) return;
         }
 
-        file.basename = replaceExtension(
-          file.basename,
-          extname(file.basename),
+        file.target = replaceExtension(
+          file.target,
+          posix.extname(file.target),
           `.${options.extension}`,
         );
 

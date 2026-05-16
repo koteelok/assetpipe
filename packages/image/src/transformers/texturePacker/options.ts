@@ -98,7 +98,7 @@ export function resolveOptions(options?: TexturePackerOptions) {
     squareSize: options?.squareSize ?? false,
     border: options?.border ?? 0,
     logic: options?.logic ?? PACKING_LOGIC.MAX_EDGE,
-    output: options?.output ?? "",
+    output: (options?.output ?? "").replace(/\\/g, "/"),
     width: options?.width,
     height: options?.height,
     dataFormat: ((): DataFormatFunction => {

@@ -88,8 +88,7 @@ export class PipelineExecutor {
           }
 
           pipeline.queryResult.push({
-            dirname: "",
-            basename: path.basename(state.base),
+            target: path.basename(state.base),
             content: basePath,
           });
           break;
@@ -114,8 +113,9 @@ export class PipelineExecutor {
             if (!isMatch) continue;
 
             pipeline.queryResult.push({
-              basename: dirent.name,
-              dirname: path.relative(basePath, dirent.parentPath),
+              target: path
+                .relative(basePath, fullPath)
+                .replace(/\\/g, "/"),
               content: fullPath,
             });
           }
@@ -149,11 +149,12 @@ export class PipelineExecutor {
     const state = pipeline.states[query];
     if (eventType === "create") {
       const file = {
-        basename: path.basename(eventPath),
-        dirname: path.relative(
-          path.resolve(this.options.queryBase, state.base),
-          path.dirname(eventPath),
-        ),
+        target: path
+          .relative(
+            path.resolve(this.options.queryBase, state.base),
+            eventPath,
+          )
+          .replace(/\\/g, "/"),
         content: eventPath,
       };
       pipeline.queryResult.push(file);

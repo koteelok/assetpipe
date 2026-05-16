@@ -1,6 +1,7 @@
 import { File } from "@assetpipe/core/types";
 import { tmpfile } from "@assetpipe/config";
 import { MaxRectsPacker, type Rectangle } from "maxrects-packer";
+import { posix } from "node:path";
 import sharp from "sharp";
 
 import type { ResolvedOptions } from "./options";
@@ -130,8 +131,7 @@ export async function packAssets(
           height = Math.max(height, info.height);
 
           return {
-            basename: `${name}.${format.extension}`,
-            dirname: options.output,
+            target: posix.join(options.output, `${name}.${format.extension}`),
             content: output,
           };
         }),

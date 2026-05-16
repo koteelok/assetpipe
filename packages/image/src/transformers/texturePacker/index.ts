@@ -1,4 +1,4 @@
-import { extname } from "node:path";
+import { posix } from "node:path";
 
 import { File, Transformer } from "@assetpipe/core/types";
 import { tmpfile } from "@assetpipe/config";
@@ -23,7 +23,7 @@ export function texturePacker(options?: TexturePackerOptions): Transformer {
             return;
           }
         } else {
-          if (!IMAGE_EXTENSIONS.has(extname(file.basename))) {
+          if (!IMAGE_EXTENSIONS.has(posix.extname(file.target))) {
             output.push(file);
             return;
           }
@@ -57,8 +57,7 @@ export function texturePacker(options?: TexturePackerOptions): Transformer {
             sourceWidth: width,
             sourceHeight: height,
             file: {
-              basename: file.basename,
-              dirname: file.dirname,
+              target: file.target,
               content: output,
             },
           });
@@ -82,11 +81,7 @@ export function texturePacker(options?: TexturePackerOptions): Transformer {
 
     for (const atlas of atlases) {
       for (const image of atlas.images) {
-        output.push({
-          basename: image.basename,
-          dirname: _options.output,
-          content: image.content,
-        });
+        output.push(image);
       }
     }
 

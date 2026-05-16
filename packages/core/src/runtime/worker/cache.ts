@@ -58,7 +58,7 @@ class ExecutionCache {
 }
 
 export class PipelineCacheManager {
-  private CACHE_VERSION = 1;
+  private CACHE_VERSION = 2;
   private resulsCacheBackup = new ExecutionCache();
   private resulsCache = new ExecutionCache();
   private invalidated = false;
@@ -477,16 +477,14 @@ export class PipelineCacheManager {
 
     for (let i = 0; i < prevOutput.length; i++) {
       const prevFile = prevOutput[i];
-      const prevFilePath = path.join(prevFile.dirname, prevFile.basename);
-      prevOutputMap[prevFilePath] = prevFile;
+      prevOutputMap[prevFile.target] = prevFile;
     }
 
     for (let i = 0; i < curOutput.length; i++) {
       const curFile = curOutput[i];
-      const curFilePath = path.join(curFile.dirname, curFile.basename);
-      curOutputMap[curFilePath] = curFile;
+      curOutputMap[curFile.target] = curFile;
 
-      const prevFile = prevOutputMap[curFilePath];
+      const prevFile = prevOutputMap[curFile.target];
 
       if (!prevFile) {
         addedFiles.push(curFile);
@@ -500,9 +498,8 @@ export class PipelineCacheManager {
 
     for (let i = 0; i < prevOutput.length; i++) {
       const prevFile = prevOutput[i];
-      const prevFilePath = path.join(prevFile.dirname, prevFile.basename);
 
-      if (!curOutputMap[prevFilePath]) {
+      if (!curOutputMap[prevFile.target]) {
         removedFiles.push(prevFile);
       }
     }

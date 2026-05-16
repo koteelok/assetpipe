@@ -6,8 +6,7 @@ export function cloneFiles(files: File[]) {
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     copyArray.push({
-      basename: file.basename,
-      dirname: file.dirname,
+      target: file.target,
       content: file.content,
     });
   }

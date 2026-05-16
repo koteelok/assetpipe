@@ -137,10 +137,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
     pipelineFileMap.clear();
 
     files.forEach((file) => {
-      pipelineFileMap.set(
-        path.posix.join("/", slash(file.dirname), file.basename),
-        file,
-      );
+      pipelineFileMap.set(path.posix.join("/", file.target), file);
     });
 
     currentOutputFiles = files;
@@ -305,11 +302,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
             const environments = Object.values(server.environments);
 
             const invalidateFile = (file: File) => {
-              const key = path.posix.join(
-                "/",
-                slash(file.dirname),
-                file.basename,
-              );
+              const key = path.posix.join("/", file.target);
               const moduleIds = pipelineModuleIds.get(key);
               if (!moduleIds) return;
 
@@ -327,11 +320,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
             metadata.changedFiles.forEach(invalidateFile);
             metadata.removedFiles.forEach((file) => {
               invalidateFile(file);
-              const key = path.posix.join(
-                "/",
-                slash(file.dirname),
-                file.basename,
-              );
+              const key = path.posix.join("/", file.target);
               pipelineModuleIds.delete(key);
             });
 

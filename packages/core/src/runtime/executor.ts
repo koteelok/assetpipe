@@ -101,11 +101,7 @@ export async function run(options: AssetpipeOptions) {
     if (outputChanges && outputDirectory) {
       await Promise.all(
         outputChanges.removedFiles.map((file) => {
-          const filePath = path.join(
-            outputDirectory,
-            file.dirname,
-            file.basename,
-          );
+          const filePath = path.join(outputDirectory, file.target);
           return rm(filePath, { force: true });
         }),
       );
@@ -124,13 +120,9 @@ export async function run(options: AssetpipeOptions) {
     if (outputDirectory) {
       await Promise.all(
         files.map(async (file) => {
-          await mkdir(path.join(outputDirectory, file.dirname), {
-            recursive: true,
-          });
-          await copyFile(
-            file.content,
-            path.join(outputDirectory, file.dirname, file.basename),
-          );
+          const dest = path.join(outputDirectory, file.target);
+          await mkdir(path.dirname(dest), { recursive: true });
+          await copyFile(file.content, dest);
         }),
       );
     }
