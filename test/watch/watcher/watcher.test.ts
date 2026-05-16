@@ -1,4 +1,4 @@
-import { ExecutionMetadata, watch } from "@assetpipe/core/runtime";
+import { ExecutionMetadata, PipelineWatcher } from "@assetpipe/core/runtime";
 import { File } from "@assetpipe/core/types";
 import { mkdir, readFile, rm, unlink, writeFile } from "fs/promises";
 import { join, resolve } from "path";
@@ -27,7 +27,7 @@ describe("watcher mode", () => {
   test("initial spawn produces output", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
 
-    const watcher = await watch({
+    const watcher = new PipelineWatcher({
       entry,
       queryBase: __dirname,
       useWorker: false,
@@ -47,7 +47,7 @@ describe("watcher mode", () => {
   test("file change triggers output", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
 
-    const watcher = await watch({
+    const watcher = new PipelineWatcher({
       entry,
       queryBase: __dirname,
       useWorker: false,
@@ -78,7 +78,7 @@ describe("watcher mode", () => {
   test("file creation/deletion triggers output", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
 
-    const watcher = await watch({
+    const watcher = new PipelineWatcher({
       entry,
       queryBase: __dirname,
       useWorker: false,
@@ -109,7 +109,7 @@ describe("watcher mode", () => {
     const onOutput =
       vi.fn<(files: File[], metadata?: ExecutionMetadata) => void>();
 
-    const watcher = await watch({
+    const watcher = new PipelineWatcher({
       entry,
       queryBase: __dirname,
       cacheDirectory,

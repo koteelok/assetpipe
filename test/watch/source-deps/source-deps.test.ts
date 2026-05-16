@@ -1,4 +1,4 @@
-import { watch } from "@assetpipe/core/runtime";
+import { PipelineWatcher } from "@assetpipe/core/runtime";
 import type { File } from "@assetpipe/core/types";
 import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import { resolve } from "path";
@@ -52,7 +52,7 @@ export default query(ASSETS).pipe(async (files) => {
   test("modifying a transitively-imported source file re-runs the pipeline", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
 
-    const watcher = await watch({
+    const watcher = new PipelineWatcher({
       entry,
       queryBase: root,
       useWorker: false,
@@ -79,7 +79,7 @@ export default query(ASSETS).pipe(async (files) => {
   test("modifying the entry file re-runs the pipeline", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
 
-    const watcher = await watch({
+    const watcher = new PipelineWatcher({
       entry,
       queryBase: root,
       useWorker: false,
@@ -162,7 +162,7 @@ export default query(ASSETS).pipe(async (files) => {
   test("modifying the deepest dep (3 levels down) re-runs the pipeline", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
 
-    const watcher = await watch({
+    const watcher = new PipelineWatcher({
       entry,
       queryBase: root,
       useWorker: false,
@@ -189,7 +189,7 @@ export default query(ASSETS).pipe(async (files) => {
   test("modifying a mid-chain re-export re-runs the pipeline", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
 
-    const watcher = await watch({
+    const watcher = new PipelineWatcher({
       entry,
       queryBase: root,
       useWorker: false,
@@ -217,7 +217,7 @@ export default query(ASSETS).pipe(async (files) => {
   test("modifying the top dep (used via dynamic import) re-runs the pipeline", async () => {
     const onOutput = vi.fn<(files: File[]) => void>();
 
-    const watcher = await watch({
+    const watcher = new PipelineWatcher({
       entry,
       queryBase: root,
       useWorker: false,
