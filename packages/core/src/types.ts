@@ -111,10 +111,6 @@ export class File {
       content: this.content,
     });
   }
-
-  toJSON() {
-    return { target: this.target, content: this.content };
-  }
 }
 
 export type Transformer = (

@@ -56,6 +56,59 @@ class ExecutionCache {
     this.groupMembership = {};
     this.output = [];
   }
+
+  toJSON() {
+    const results: Record<string, { target: string, content: string }[]> = {};
+    for (const id in this.results) {
+      const files = this.results[id];
+      const serializedFiles = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        serializedFiles[i] = {
+          target: file.target,
+          content: file.content,
+        }
+      }
+      results[id] = serializedFiles;
+    }
+    const serializedOutput = [];
+    for (let i = 0; i < this.output.length; i++) {
+      const file = this.output[i];
+      serializedOutput[i] = {
+        target: file.target,
+        content: file.content,
+      }
+    }
+    return {
+      results,
+      groupMembership: this.groupMembership,
+      output: serializedOutput,
+    };
+  }
+
+  loadJSON(parsed: ReturnType<ExecutionCache["toJSON"]>) {
+    this.results = {};
+    for (const id in parsed.results) {
+      const serializedFiles = parsed.results[id];
+      const files = [];
+      for (let i = 0; i < serializedFiles.length; i++) {
+        const serializedFile = serializedFiles[i];
+        files[i] = new File({
+          target: serializedFile.target,
+          content: serializedFile.content,
+        })
+      }
+      this.results[id] = files;
+    }
+    this.groupMembership = parsed.groupMembership ?? {};
+    for (let i = 0; i < parsed.output.length; i++) {
+      const serializedFile = parsed.output[i];
+      this.output[i] = new File({
+        target: serializedFile.target,
+        content: serializedFile.content,
+      })
+    }
+  }
 }
 
 export class PipelineCacheManager {
@@ -109,17 +162,7 @@ export class PipelineCacheManager {
   async loadResults() {
     try {
       const parsed = JSON.parse(await readFile(this.resultsPath, "utf-8"));
-      for (const id in parsed.results) {
-        parsed.results[id] = parsed.results[id].map(
-          (f: { target: string; content: string }) =>
-            new File({ target: f.target, content: f.content }),
-        );
-      }
-      parsed.output = parsed.output.map(
-        (f: { target: string; content: string }) =>
-          new File({ target: f.target, content: f.content }),
-      );
-      this.resulsCacheBackup.extract(parsed);
+      this.resulsCacheBackup.loadJSON(parsed);
 
       let codeChanged = false;
       for (const directory of this.codeDirectories) {
