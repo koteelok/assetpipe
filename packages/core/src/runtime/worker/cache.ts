@@ -57,7 +57,7 @@ class ExecutionCache {
 }
 
 export class PipelineCacheManager {
-  private CACHE_VERSION = 1;
+  private CACHE_VERSION = 2;
   private resulsCacheBackup = new ExecutionCache();
   private resulsCache = new ExecutionCache();
   private invalidated = false;
