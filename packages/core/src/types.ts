@@ -2,6 +2,7 @@ import { posix } from "node:path";
 
 export type ArrayOr<T> = T | T[];
 export type MaybePromise<T> = T | Promise<T>;
+export type MaybeReadonly<T> = T | Readonly<T>;
 export type QueryLike = string | string[];
 
 export type FileOptions =
@@ -118,4 +119,4 @@ export class File {
 
 export type Transformer = (
   files: readonly File[],
-) => MaybePromise<readonly File[]>;
+) => MaybePromise<MaybeReadonly<File[]>>;
