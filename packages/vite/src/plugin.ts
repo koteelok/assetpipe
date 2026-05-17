@@ -362,12 +362,18 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
 
       const serve = sirv(options.outputDirectory, {
         dev: true,
-        etag: true,
+        etag: false,
         extensions: [],
         setHeaders(res, pathname) {
           if (/\.[tj]sx?$/.test(pathname)) {
             res.setHeader("Content-Type", "text/javascript");
           }
+          res.setHeader(
+            "Cache-Control",
+            "no-store, no-cache, must-revalidate, max-age=0",
+          );
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
           const headers = server.config.server.headers;
           if (headers) {
             for (const name in headers) {
