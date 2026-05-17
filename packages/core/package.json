@@ -52,8 +52,7 @@
     }
   },
   "scripts": {
-    "build": "tsdown",
-    "dev": "tsdown --watch"
+    "build": "tsdown"
   },
   "dependencies": {
     "@parcel/watcher": "^2.5.1",
@@ -78,9 +77,6 @@
         "outputs": [
           "{projectRoot}/dist"
         ]
-      },
-      "dev": {
-        "continuous": true
       }
     }
   }
