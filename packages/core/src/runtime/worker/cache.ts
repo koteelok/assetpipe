@@ -112,12 +112,12 @@ export class PipelineCacheManager {
       for (const id in parsed.results) {
         parsed.results[id] = parsed.results[id].map(
           (f: { target: string; content: string }) =>
-            new File(f.target, f.content),
+            new File({ target: f.target, content: f.content }),
         );
       }
       parsed.output = parsed.output.map(
         (f: { target: string; content: string }) =>
-          new File(f.target, f.content),
+          new File({ target: f.target, content: f.content }),
       );
       this.resulsCacheBackup.extract(parsed);
 

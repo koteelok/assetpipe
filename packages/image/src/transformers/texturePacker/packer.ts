@@ -1,5 +1,3 @@
-import { posix } from "node:path";
-
 import { File } from "@assetpipe/core/types";
 import { tmpfile } from "@assetpipe/config";
 import { MaxRectsPacker, type Rectangle } from "maxrects-packer";
@@ -131,10 +129,7 @@ export async function packAssets(
           width = Math.max(width, info.width);
           height = Math.max(height, info.height);
 
-          return new File(
-            posix.join(options.output, `${name}.${format.extension}`),
-            output,
-          );
+          return new File({ basename: `${name}.${format.extension}`, dirname: options.output, content: output });
         }),
       );
 

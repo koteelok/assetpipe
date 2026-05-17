@@ -1,7 +1,6 @@
 import { File } from "@assetpipe/core/types";
 import { tmpfile } from "@assetpipe/config";
 import { writeFile } from "fs/promises";
-import { posix } from "path";
 
 import { MaybePromise } from "../../types";
 import { ResolvedOptions } from "./options";
@@ -15,7 +14,7 @@ export type DataFormatFunction = (
 const raw: DataFormatFunction = async (atlas, options) => {
   const output = tmpfile();
   await writeFile(output, JSON.stringify(atlas));
-  return [new File(posix.join(options.output, `${atlas.name}.json`), output)];
+  return [new File({ basename: `${atlas.name}.json`, dirname: options.output, content: output })];
 };
 
 const TexturePacker: DataFormatFunction = async (atlas, options) => {
@@ -59,7 +58,7 @@ const TexturePacker: DataFormatFunction = async (atlas, options) => {
       },
     }),
   );
-  return [new File(posix.join(options.output, `${atlas.name}.json`), output)];
+  return [new File({ basename: `${atlas.name}.json`, dirname: options.output, content: output })];
 };
 
 export const dataFormats = { raw, TexturePacker };

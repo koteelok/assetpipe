@@ -58,7 +58,7 @@ export class PipelineExecutor {
           }
 
           pipeline.queryResult.push(
-            new File(path.basename(state.base), basePath),
+            new File({ target: path.basename(state.base), content: basePath }),
           );
           break;
         }
@@ -84,7 +84,7 @@ export class PipelineExecutor {
             const relative = path
               .relative(basePath, fullPath)
               .replaceAll(path.sep, "/");
-            pipeline.queryResult.push(new File(relative, fullPath));
+            pipeline.queryResult.push(new File({ target: relative, content: fullPath }));
           }
           break;
         }
@@ -119,7 +119,7 @@ export class PipelineExecutor {
       const relative = path
         .relative(basePath, eventPath)
         .replaceAll(path.sep, "/");
-      const file = new File(relative, eventPath);
+      const file = new File({ target: relative, content: eventPath });
       pipeline.queryResult.push(file);
       pipeline.filteredQueryResult.push(file);
     } else if (eventType === "delete") {
