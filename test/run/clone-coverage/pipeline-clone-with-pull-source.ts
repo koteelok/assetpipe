@@ -1,6 +1,6 @@
 import { File, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { posix, resolve } from "path";
+import { resolve } from "path";
 
 const counterDir = resolve(__dirname, "counters");
 
@@ -24,7 +24,7 @@ const extras = query("assets/extras/*.txt").pipe(async (files) => {
     .join("|");
   const out = tmpfile();
   await writeFile(out, concat);
-  return [new File(posix.join("__extras__", "extras.bundle"), out)];
+  return [new File({ basename: "extras.bundle", dirname: "__extras__", content: out })];
 });
 
 // Source has a `pull` in its commands. The clone reads source's resolved
@@ -45,7 +45,7 @@ const source = query("assets/main/*.txt")
     );
     const out = tmpfile();
     await writeFile(out, joined.join(","));
-    return [new File("source.txt", out)];
+    return [new File({ target: "source.txt", content: out })];
   });
 
 const cloned = source.clone().pipe(async (files) => {
@@ -53,7 +53,7 @@ const cloned = source.clone().pipe(async (files) => {
   const raw = await readFile(files[0].content, "utf-8");
   const out = tmpfile();
   await writeFile(out, "[" + raw + "]");
-  return [new File("wrapped.txt", out)];
+  return [new File({ target: "wrapped.txt", content: out })];
 });
 
 export default cloned;

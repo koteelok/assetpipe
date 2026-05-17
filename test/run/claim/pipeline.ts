@@ -13,7 +13,7 @@ const claimPipeline = query("assets/*.txt", { claim: true }).pipe(async (files) 
     .join(",");
   const out = tmpfile();
   await writeFile(out, `claimed:${names}`);
-  return [new File("claimed.txt", out)];
+  return [new File({ target: "claimed.txt", content: out })];
 });
 
 const selectPipeline = query("assets/*.txt")
@@ -24,7 +24,7 @@ const selectPipeline = query("assets/*.txt")
       .join(",");
     const out = tmpfile();
     await writeFile(out, `selected:${names}`);
-    return [new File("selected.txt", out)];
+    return [new File({ target: "selected.txt", content: out })];
   });
 
 export default group(claimPipeline, selectPipeline);

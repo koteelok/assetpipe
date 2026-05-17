@@ -10,5 +10,5 @@ export default query("assets/*").pipe(async (files) => {
 
   await writeFile(content, text);
 
-  return [new File("file.txt", content)];
+  return [new File({ target: "file.txt", content: content })];
 });

@@ -12,5 +12,5 @@ export default query("assets/**/*.*", { groupBy: (file) => file.dirname })
     const group = path.basename(files[0].dirname || files[0].basename);
     const out = tmpfile();
     await writeFile(out, texts.join("\n"));
-    return [new File(`${group}.bundle`, out)];
+    return [new File({ target: `${group}.bundle`, content: out })];
   });

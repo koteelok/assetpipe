@@ -12,6 +12,6 @@ export default context(
     );
     const out = tmpfile();
     await writeFile(out, texts.sort().join("|"));
-    return [new File("ctx_output.txt", out)];
+    return [new File({ target: "ctx_output.txt", content: out })];
   }),
 );

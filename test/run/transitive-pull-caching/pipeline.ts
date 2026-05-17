@@ -29,7 +29,7 @@ async function concat(
   );
   const out = tmpfile();
   await writeFile(out, parts.join("") + suffix);
-  return new File(outName, out);
+  return new File({ target: outName, content: out });
 }
 
 const registryPipeline = group()

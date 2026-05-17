@@ -21,5 +21,5 @@ export default query("assets/**/*.txt", {
   );
   const out = tmpfile();
   await writeFile(out, texts.join("\n"));
-  return [new File(`${tag}.bundle`, out)];
+  return [new File({ target: `${tag}.bundle`, content: out })];
 });

@@ -40,7 +40,7 @@ const cloned = ctx.clone().pipe(async (files) => {
   );
   const out = tmpfile();
   await writeFile(out, joined.join(","));
-  return [new File("ctx-out.txt", out)];
+  return [new File({ target: "ctx-out.txt", content: out })];
 });
 
 export default cloned;

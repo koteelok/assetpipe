@@ -11,7 +11,7 @@ export default context(
       );
       const out = tmpfile();
       await writeFile(out, `[${texts[0]}]`);
-      return [new File("a.txt", out)];
+      return [new File({ target: "a.txt", content: out })];
     }),
     query("b.txt").pipe(async (files) => {
       const texts = await Promise.all(
@@ -19,7 +19,7 @@ export default context(
       );
       const out = tmpfile();
       await writeFile(out, `(${texts[0]})`);
-      return [new File("b.txt", out)];
+      return [new File({ target: "b.txt", content: out })];
     }),
     query("c.txt").pipe(async (files) => {
       const texts = await Promise.all(
@@ -27,7 +27,7 @@ export default context(
       );
       const out = tmpfile();
       await writeFile(out, `{${texts[0]}}`);
-      return [new File("c.txt", out)];
+      return [new File({ target: "c.txt", content: out })];
     }),
   ).pipe(async (files) => {
     const texts = await Promise.all(
@@ -35,6 +35,6 @@ export default context(
     );
     const out = tmpfile();
     await writeFile(out, texts.sort().join("|"));
-    return [new File("ctx_output.txt", out)];
+    return [new File({ target: "ctx_output.txt", content: out })];
   }),
 );

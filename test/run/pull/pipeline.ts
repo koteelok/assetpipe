@@ -11,7 +11,7 @@ const txtPipeline = query("assets/txt/*.txt", { parallel: true })
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw.toUpperCase());
-    return [new File(file.basename + ".proc", out)];
+    return [new File({ target: file.basename + ".proc", content: out })];
   });
 
 const jsonPipeline = query("assets/json/*.json", { parallel: true })
@@ -19,7 +19,7 @@ const jsonPipeline = query("assets/json/*.json", { parallel: true })
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw);
-    return [new File(file.basename + ".dat", out)];
+    return [new File({ target: file.basename + ".dat", content: out })];
   });
 
 export default query("assets/txt/*.txt")
@@ -31,5 +31,5 @@ export default query("assets/txt/*.txt")
       .join("\n");
     const out = tmpfile();
     await writeFile(out, basenames);
-    return [new File("manifest.txt", out)];
+    return [new File({ target: "manifest.txt", content: out })];
   });

@@ -1,6 +1,6 @@
 import { File, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { posix, resolve } from "path";
+import { resolve } from "path";
 
 const counterDir = resolve(__dirname, "counters");
 
@@ -24,7 +24,7 @@ const extras = query("assets/extras/*.txt").pipe(async (files) => {
     .join("|");
   const out = tmpfile();
   await writeFile(out, joined);
-  return [new File(posix.join("__extras__", "extras.bundle"), out)];
+  return [new File({ basename: "extras.bundle", dirname: "__extras__", content: out })];
 });
 
 export default query("assets/main/*.txt", { parallel: true })
@@ -44,5 +44,5 @@ export default query("assets/main/*.txt", { parallel: true })
     const extraRaw = extra ? await readFile(extra.content, "utf-8") : "";
     const out = tmpfile();
     await writeFile(out, mainRaw + "+" + extraRaw);
-    return [new File(main.basename + ".out", out)];
+    return [new File({ target: main.basename + ".out", content: out })];
   });

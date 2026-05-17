@@ -1,6 +1,6 @@
 import { File, group, query, tmpfile } from "@assetpipe/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
-import { posix, resolve } from "path";
+import { resolve } from "path";
 
 const counterDir = resolve(__dirname, "counters");
 
@@ -31,7 +31,7 @@ function makeChild(parent: typeof source, tag: string) {
     const raw = await readFile(file.content, "utf-8");
     const out = tmpfile();
     await writeFile(out, raw + "/" + tag);
-    return [new File(posix.join(tag, file.basename), out)];
+    return [new File({ basename: file.basename, dirname: tag, content: out })];
   });
 }
 

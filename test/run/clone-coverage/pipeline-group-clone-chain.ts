@@ -51,7 +51,7 @@ const step1 = combined.clone().pipe(async (files) => {
   );
   const out = tmpfile();
   await writeFile(out, joined.join(","));
-  return [new File("step1.txt", out)];
+  return [new File({ target: "step1.txt", content: out })];
 });
 
 const step2 = step1.clone().pipe(async (files) => {
@@ -59,7 +59,7 @@ const step2 = step1.clone().pipe(async (files) => {
   const raw = await readFile(files[0].content, "utf-8");
   const out = tmpfile();
   await writeFile(out, "<" + raw + ">");
-  return [new File("step2.txt", out)];
+  return [new File({ target: "step2.txt", content: out })];
 });
 
 const step3 = step2.clone().pipe(async (files) => {
@@ -67,7 +67,7 @@ const step3 = step2.clone().pipe(async (files) => {
   const raw = await readFile(files[0].content, "utf-8");
   const out = tmpfile();
   await writeFile(out, raw + "!");
-  return [new File("step3.txt", out)];
+  return [new File({ target: "step3.txt", content: out })];
 });
 
 export default step3;

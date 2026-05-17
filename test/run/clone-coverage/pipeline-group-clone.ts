@@ -53,7 +53,7 @@ const cloned = combined.clone().pipe(async (files) => {
   );
   const out = tmpfile();
   await writeFile(out, joined.join(","));
-  return [new File("merged.txt", out)];
+  return [new File({ target: "merged.txt", content: out })];
 });
 
 export default cloned;

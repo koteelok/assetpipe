@@ -7,5 +7,5 @@ const ASSETS = path.join(__dirname, "assets/*.txt").replace(/\\/g, "/");
 export default query(ASSETS, { parallel: true }).pipe(async ([file]) => {
   const out = tmpfile();
   await writeFile(out, await readFile(file.content, "utf-8"));
-  return [new File(file.basename, out)];
+  return [new File({ target: file.basename, content: out })];
 });

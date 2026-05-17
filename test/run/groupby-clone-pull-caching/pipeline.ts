@@ -48,5 +48,5 @@ export default query("assets/tiles/*.{tile,meta}", {
 
     const out = tmpfile();
     await writeFile(out, `${tileText}|${metaText}|${maskTexts.join(",")}`);
-    return [new File(tileFile.basename.replace(".tile", ".out"), out)];
+    return [new File({ target: tileFile.basename.replace(".tile", ".out"), content: out })];
   });

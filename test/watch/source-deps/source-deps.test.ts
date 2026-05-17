@@ -39,7 +39,7 @@ export default query(ASSETS).pipe(async (files) => {
     files.map((f) => readFile(f.content, "utf-8")),
   );
   await writeFile(out, format(parts));
-  return [new File("out.txt", out)];
+  return [new File({ target: "out.txt", content: out })];
 });
 `;
     await writeFile(entry, entrySource);
@@ -149,7 +149,7 @@ export default query(ASSETS).pipe(async (files) => {
     files.map((f) => readFile(f.content, "utf-8")),
   );
   await writeFile(out, await run(parts));
-  return [new File("out.txt", out)];
+  return [new File({ target: "out.txt", content: out })];
 });
 `;
     await writeFile(entry, entrySource);

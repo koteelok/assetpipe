@@ -12,7 +12,7 @@ const contentPipeline = query("assets/**/*.*").pipe(async (files) => {
     .join("\n");
   const out = tmpfile();
   await writeFile(out, names);
-  return [new File("filelist.txt", out)];
+  return [new File({ target: "filelist.txt", content: out })];
 });
 
 export default group(ignorePipeline, contentPipeline);

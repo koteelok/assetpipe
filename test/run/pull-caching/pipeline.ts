@@ -31,7 +31,7 @@ export default group(
       );
       const out = tmpfile();
       await writeFile(out, `${text1}${text2}${text1}`);
-      return [new File(`2.txt`, out)];
+      return [new File({ target: `2.txt`, content: out })];
     }),
 
   group()
@@ -42,7 +42,7 @@ export default group(
         text.split("").map(async (char) => {
           const out = tmpfile();
           await writeFile(out, `[${char}]`);
-          return new File(`1_${char}.txt`, out);
+          return new File({ target: `1_${char}.txt`, content: out });
         }),
       );
     }),
@@ -54,5 +54,5 @@ export default group(
   );
   const out = tmpfile();
   await writeFile(out, texts.join("\n"));
-  return [new File(`bundle.txt`, out)];
+  return [new File({ target: `bundle.txt`, content: out })];
 });
