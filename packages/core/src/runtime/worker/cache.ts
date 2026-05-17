@@ -21,6 +21,8 @@ import type { ExecutionMetadata } from "../options";
 import type { PipelineState } from "./state";
 import { AssetpipeOptionsWithDefaults } from "../options";
 
+declare const __ASSETPIPE_BUILD_ID__: string;
+
 export type AssetpipeCacheOptions = SetRequired<
   AssetpipeOptionsWithDefaults,
   "cacheDirectory"
@@ -57,7 +59,6 @@ class ExecutionCache {
 }
 
 export class PipelineCacheManager {
-  private CACHE_VERSION = 2;
   private resulsCacheBackup = new ExecutionCache();
   private resulsCache = new ExecutionCache();
   private invalidated = false;
@@ -78,13 +79,13 @@ export class PipelineCacheManager {
     const versionFile = path.join(this.options.cacheDirectory, "version");
 
     const storedVersion = await existsFile(versionFile).then(
-      (exists) => (exists ? readFile(versionFile, "utf-8").then(parseInt) : -1),
-      () => -1,
+      (exists) => (exists ? readFile(versionFile, "utf-8") : null),
+      () => null,
     );
-    if (storedVersion !== this.CACHE_VERSION) {
+    if (storedVersion !== __ASSETPIPE_BUILD_ID__) {
       await rm(this.options.cacheDirectory, { recursive: true, force: true });
       await mkdir(this.options.cacheDirectory, { recursive: true });
-      await writeFile(versionFile, this.CACHE_VERSION.toString());
+      await writeFile(versionFile, __ASSETPIPE_BUILD_ID__);
     }
 
     this.codeFiles = await parseImportsDeep(this.options.entry);
