@@ -3,6 +3,8 @@ import { mkdir, readdir, readFile, rm, writeFile } from "fs/promises";
 import { resolve } from "path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
+import { touchFile } from "../../utils";
+
 describe("clone", () => {
   const baseDir = __dirname;
   const assetsDir = resolve(baseDir, "assets");
@@ -114,9 +116,7 @@ describe("clone", () => {
       "cloneB-c.txt": 1,
     });
 
-    await new Promise((r) => setTimeout(r, 100));
-    await writeFile(resolve(assetsDir, "a.txt"), "alpha-changed");
-    await new Promise((r) => setTimeout(r, 100));
+    await touchFile(resolve(assetsDir, "a.txt"), "alpha-changed");
 
     await run({
       entry: resolve(baseDir, "pipeline.ts"),

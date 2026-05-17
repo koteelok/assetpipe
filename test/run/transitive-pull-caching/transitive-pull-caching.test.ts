@@ -4,6 +4,8 @@ import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import { resolve } from "path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { touchFile } from "../../utils";
+
 describe("transitive-pull-caching", () => {
   const assetsDir = resolve(__dirname, "assets");
   const cacheDir = resolve(__dirname, "cache");
@@ -78,9 +80,7 @@ describe("transitive-pull-caching", () => {
     // Phase 3 — change a file the registry depends on. The atlas does not
     // read it, so `generate` must NOT re-run; `registry` and `reencode`
     // must re-run; `root` must re-run (its input changed).
-    await new Promise((r) => setTimeout(r, 100));
-    await writeFile(metadataFile, "v2");
-    await new Promise((r) => setTimeout(r, 100));
+    await touchFile(metadataFile, "v2");
     await runOnce();
     expect(await getCounters()).toEqual({
       generate: 1,
@@ -94,9 +94,7 @@ describe("transitive-pull-caching", () => {
     // and `firstDirtyPull` was not set, so phase 4 either recomputed
     // everything or skipped everything. With the fix it behaves like
     // phase 3.
-    await new Promise((r) => setTimeout(r, 100));
-    await writeFile(metadataFile, "v1");
-    await new Promise((r) => setTimeout(r, 100));
+    await touchFile(metadataFile, "v1");
     await runOnce();
     expect(await getCounters()).toEqual({
       generate: 1,

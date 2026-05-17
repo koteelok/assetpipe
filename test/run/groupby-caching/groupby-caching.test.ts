@@ -3,6 +3,8 @@ import { mkdir, readdir, readFile, rm, writeFile } from "fs/promises";
 import { resolve } from "path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
+import { removeFile, touchFile } from "../../utils";
+
 describe("groupby caching", () => {
   const assetsDir = resolve(__dirname, "assets");
   const cacheDir = resolve(__dirname, "cache");
@@ -57,9 +59,7 @@ describe("groupby caching", () => {
     });
     expect(await getCounts()).toEqual({ alpha: 1, beta: 1 });
 
-    await new Promise((r) => setTimeout(r, 100));
-    await writeFile(resolve(assetsDir, "alpha", "1.txt"), "a1-changed");
-    await new Promise((r) => setTimeout(r, 100));
+    await touchFile(resolve(assetsDir, "alpha", "1.txt"), "a1-changed");
 
     await run({
       entry,
@@ -72,9 +72,7 @@ describe("groupby caching", () => {
     // alpha must recompute, beta must stay cached.
     expect(await getCounts()).toEqual({ alpha: 2, beta: 1 });
 
-    await new Promise((r) => setTimeout(r, 100));
-    await writeFile(resolve(assetsDir, "beta", "1.txt"), "b1-changed");
-    await new Promise((r) => setTimeout(r, 100));
+    await touchFile(resolve(assetsDir, "beta", "1.txt"), "b1-changed");
 
     await run({
       entry,
@@ -103,9 +101,7 @@ describe("groupby caching", () => {
     });
     expect(await getCounts()).toEqual({ alpha: 1, beta: 1 });
 
-    await new Promise((r) => setTimeout(r, 100));
-    await rm(resolve(assetsDir, "alpha", "1.txt"));
-    await new Promise((r) => setTimeout(r, 100));
+    await removeFile(resolve(assetsDir, "alpha", "1.txt"));
 
     await run({
       entry,

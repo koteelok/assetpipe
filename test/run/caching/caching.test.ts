@@ -3,7 +3,7 @@ import { ExecutionMetadata, run } from "@assetpipe/core/runtime";
 import { mkdir, readdir, readFile, rm, writeFile } from "fs/promises";
 import { resolve } from "path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { waitForCalls } from "../../utils";
+import { touchFile, waitForCalls } from "../../utils";
 
 describe("caching", () => {
   const assetsDir = resolve(__dirname, "assets");
@@ -140,9 +140,7 @@ describe("caching", () => {
     expect(metadata?.queryTriggers.length).toBe(0);
 
     // Modify one asset
-    await new Promise((r) => setTimeout(r, 100)); // wait for watcher if any
-    await writeFile(resolve(assetsDir, "a.txt"), "alpha-changed");
-    await new Promise((r) => setTimeout(r, 100));
+    await touchFile(resolve(assetsDir, "a.txt"), "alpha-changed");
 
     // Second run
     await run({
@@ -199,10 +197,8 @@ describe("caching", () => {
     expect(metadata?.queryTriggers.length).toBe(0);
 
     // Touch the pipeline file to change its modification time
-    await new Promise((r) => setTimeout(r, 100));
     let content = await readFile(entry, "utf-8");
-    await writeFile(entry, content + "\n// changed config");
-    await new Promise((r) => setTimeout(r, 100));
+    await touchFile(entry, content + "\n// changed config");
 
     // Second run
     await run({

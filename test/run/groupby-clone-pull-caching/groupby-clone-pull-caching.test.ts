@@ -3,6 +3,8 @@ import { mkdir, readdir, readFile, rm, writeFile } from "fs/promises";
 import { resolve } from "path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
+import { touchFile } from "../../utils";
+
 describe("groupby-clone-pull-caching", () => {
   const assetsDir = resolve(__dirname, "assets");
   const cacheDir = resolve(__dirname, "cache");
@@ -82,9 +84,7 @@ describe("groupby-clone-pull-caching", () => {
     // Changing a pulled mask must propagate into every group's output, not
     // just the last group's. Without the fix, firstDirtyPull on a groupBy
     // query took an early-return path that only recomputed one group.
-    await new Promise((r) => setTimeout(r, 100));
-    await writeFile(resolve(assetsDir, "masks", "1.txt"), "X2");
-    await new Promise((r) => setTimeout(r, 100));
+    await touchFile(resolve(assetsDir, "masks", "1.txt"), "X2");
 
     await run({
       entry,
