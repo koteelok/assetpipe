@@ -23,6 +23,8 @@ import { encodeURIPath } from "./utils/encodeURIPath";
 import { joinUrlSegments } from "./utils/joinUrlSegments";
 import { isParsableRequest } from "./utils/viteRequests";
 
+type MaybePromise<T> = T | Promise<T>;
+
 export interface HandleReloadOptions {
   /**
    * The output files from the pipeline execution.
@@ -98,7 +100,9 @@ export interface AssetpipePluginOptions {
    * string) to override how a specific import is loaded.
    * Return `undefined` to fall through to the default behavior.
    */
-  resolveImport?: (options: ResolveImportOptions) => { id: string; source: string } | undefined;
+  resolveImport?: (
+    options: ResolveImportOptions,
+  ) => MaybePromise<{ id: string; source: string } | undefined>;
 
   /**
    * Called after every pipeline execution with the current output files
@@ -153,10 +157,10 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
   // Keyed by the id returned from resolveImport — used by load() and invalidation.
   const resolvedImportsById = new Map<string, ResolvedImport>();
 
-  function resolveImport(
+  async function resolveImport(
     config: ResolvedConfig,
     id: string,
-  ): ResolvedImport | undefined {
+  ): Promise<ResolvedImport | undefined> {
     if (!options.resolveImport) return;
 
     const cached = resolvedImportsBySource.get(id);
@@ -164,7 +168,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
       return cached ?? undefined;
     }
 
-    const resolved = options.resolveImport({
+    const resolved = await options.resolveImport({
       config,
       id,
       files: currentOutputFiles,
@@ -214,7 +218,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
 
       await activePipeline.promise;
 
-      const resolved = resolveImport(config, source);
+      const resolved = await resolveImport(config, source);
       if (resolved) return resolved.id;
 
       const withoutPrefix = `/${source.slice(options.prefix.length)}`; // "@/test.txt?raw" → "/test.txt?raw"
