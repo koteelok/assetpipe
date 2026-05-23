@@ -20,6 +20,16 @@ type TileBasenameOptions = {
   tileSize: { width: number; height: number };
   area: Area;
   gap: { x: number; y: number };
+  /** Zero-based column of this tile within the area grid. */
+  column: number;
+  /** Zero-based row of this tile within the area grid. */
+  row: number;
+  /** Number of columns in the area grid (including partial/skipped slots). */
+  columns: number;
+  /** Number of rows in the area grid (including partial/skipped slots). */
+  rows: number;
+  /** Zero-based row-major index of this tile: `row * columns + column`. */
+  tileIndex: number;
 };
 type SkipTileCallback = (
   channels: number[],
@@ -244,16 +254,29 @@ export function extractTiles(_options: ExtractTilesOptions): Transformer {
         const areaRight = area.left + area.width;
         const areaBottom = area.top + area.height;
 
+        const columns = Math.ceil(
+          (areaRight - (area.left + options.padding.x)) /
+            (tileSize.width + options.gap.y),
+        );
+        const rows = Math.ceil(
+          (areaBottom - (area.top + options.padding.y)) /
+            (tileSize.height + options.gap.x),
+        );
+
+        let row = -1;
         for (
           let top = area.top + options.padding.y;
           top < areaBottom;
           top += tileSize.height + options.gap.x
         ) {
+          row++;
+          let column = -1;
           for (
             let left = area.left + options.padding.x;
             left < areaRight;
             left += tileSize.width + options.gap.y
           ) {
+            column++;
             const extractWidth = Math.min(tileSize.width, areaRight - left);
             const extractHeight = Math.min(tileSize.height, areaBottom - top);
 
@@ -358,6 +381,11 @@ export function extractTiles(_options: ExtractTilesOptions): Transformer {
                           tileSize,
                           area,
                           gap: options.gap,
+                          column,
+                          row,
+                          columns,
+                          rows,
+                          tileIndex: row * columns + column,
                         });
                       } else {
                         const extension = extname(file.basename);
