@@ -8,6 +8,7 @@ import { ImageFormatOptions } from "../utils/imageFormat";
 import { IMAGE_EXTENSIONS } from "../utils/imageFormat";
 
 type TileSize = number | { width: number; height: number };
+type Area = { left: number; top: number; width: number; height: number };
 type TileSizeOptions = {
   source: File;
   sourceInfo: OutputInfo;
@@ -34,6 +35,16 @@ export type ExtractTilesOptions = {
    * By default, the tile size is 16.
    */
   tileSize?: TileSize | ((options: TileSizeOptions) => TileSize);
+
+  /**
+   * Restrict tile extraction to a sub-region of the source image.
+   *
+   * Useful when a single file contains multiple tilesets and only one
+   * of them should be extracted. Coordinates are in source pixels.
+   *
+   * By default, the whole image is used.
+   */
+  area?: Area | ((options: TileSizeOptions) => Area);
 
   /**
    * Callback to generate the basename for the tile files.
@@ -113,6 +124,19 @@ export function extractTiles(_options: ExtractTilesOptions): Transformer {
         }
         default:
           return () => ({ width: 16, height: 16 });
+      }
+    })(),
+
+    area: (() => {
+      switch (typeof _options.area) {
+        case "object": {
+          const value = _options.area;
+          return () => value;
+        }
+        case "function":
+          return _options.area;
+        default:
+          return () => undefined;
       }
     })(),
 
@@ -205,24 +229,31 @@ export function extractTiles(_options: ExtractTilesOptions): Transformer {
           sourceInfo: raw.info,
         });
 
+        const area = options.area({
+          source: file,
+          sourceInfo: raw.info,
+        }) ?? {
+          left: 0,
+          top: 0,
+          width: metadata.width,
+          height: metadata.height,
+        };
+
+        const areaRight = area.left + area.width;
+        const areaBottom = area.top + area.height;
+
         for (
-          let top = options.padding.y;
-          top < metadata.height;
+          let top = area.top + options.padding.y;
+          top < areaBottom;
           top += tileSize.height + options.gap.x
         ) {
           for (
-            let left = options.padding.x;
-            left < metadata.width;
+            let left = area.left + options.padding.x;
+            left < areaRight;
             left += tileSize.width + options.gap.y
           ) {
-            const extractWidth = Math.min(
-              tileSize.width,
-              metadata.width - left,
-            );
-            const extractHeight = Math.min(
-              tileSize.height,
-              metadata.height - top,
-            );
+            const extractWidth = Math.min(tileSize.width, areaRight - left);
+            const extractHeight = Math.min(tileSize.height, areaBottom - top);
 
             if (
               options.skipPartial &&
@@ -239,12 +270,12 @@ export function extractTiles(_options: ExtractTilesOptions): Transformer {
 
               emptyCheck: for (
                 let y = top * metadata.width * 4;
-                y < (top + tileSize.height) * metadata.width * 4;
+                y < (top + extractHeight) * metadata.width * 4;
                 y += metadata.width * 4
               ) {
                 for (
                   let x = left * 4 + 3;
-                  x < (left + tileSize.width) * 4;
+                  x < (left + extractWidth) * 4;
                   x += 4
                 ) {
                   if (raw.data[x + y] > 0) {
