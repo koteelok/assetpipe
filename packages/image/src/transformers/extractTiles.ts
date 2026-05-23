@@ -18,6 +18,7 @@ type TileBasenameOptions = {
   sourceInfo: OutputInfo;
   region: Region;
   tileSize: { width: number; height: number };
+  area: Area;
 };
 type SkipTileCallback = (
   channels: number[],
@@ -354,6 +355,7 @@ export function extractTiles(_options: ExtractTilesOptions): Transformer {
                           region,
                           sourceInfo: raw.info,
                           tileSize,
+                          area,
                         });
                       } else {
                         const extension = extname(file.basename);
