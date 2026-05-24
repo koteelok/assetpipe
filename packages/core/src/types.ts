@@ -5,21 +5,14 @@ export type MaybePromise<T> = T | Promise<T>;
 export type MaybeReadonly<T> = T | Readonly<T>;
 export type QueryLike = string | string[];
 
-export type FileOptions =
-  | {
-      content: string;
-      target: string;
-      basename?: never;
-      dirname?: never;
-      extname?: never;
-    }
-  | {
-      content: string;
-      basename: string;
-      dirname?: string;
-      extname?: string;
-      target?: never;
-    };
+export type FileOptions = {
+  content: string;
+  target?: string;
+  dirname?: string;
+  basename?: string;
+  stem?: string;
+  extname?: string;
+};
 
 export class File {
   /**
@@ -66,17 +59,22 @@ export class File {
    */
   readonly extname: string;
 
+  /**
+   * The filename portion of `target` without its extension (`basename`
+   * minus `extname`). Derived from `target` via `posix.parse`.
+   *
+   * @example "hero"
+   */
+  readonly stem: string;
+
   constructor(options: FileOptions) {
     let target: string;
     if (options.target !== undefined) {
       target = options.target;
     } else {
       const dir = options.dirname ?? "";
-      let base = options.basename;
-      if (options.extname !== undefined) {
-        const stem = base.slice(0, base.length - posix.parse(base).ext.length);
-        base = stem + options.extname;
-      }
+      const base =
+        options.basename ?? (options.stem ?? "") + (options.extname ?? "");
       target = dir ? posix.join(dir, base) : base;
     }
     this.target = target;
@@ -85,6 +83,7 @@ export class File {
     this.basename = parsed.base;
     this.dirname = parsed.dir;
     this.extname = parsed.ext;
+    this.stem = parsed.name;
   }
 
   withTarget(target: string): File {
@@ -103,9 +102,18 @@ export class File {
     return new File({ basename: this.basename, dirname, content: this.content });
   }
 
+  withStem(stem: string): File {
+    return new File({
+      stem,
+      dirname: this.dirname,
+      extname: this.extname,
+      content: this.content,
+    });
+  }
+
   withExtname(extname: string): File {
     return new File({
-      basename: this.basename,
+      stem: this.stem,
       dirname: this.dirname,
       extname,
       content: this.content,
