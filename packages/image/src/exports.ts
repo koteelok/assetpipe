@@ -8,3 +8,8 @@ export {
 } from "./transformers/extractTiles";
 export { texturePacker } from "./transformers/texturePacker";
 export { type TexturePackerOptions } from "./transformers/texturePacker/options";
+export {
+  trimImages,
+  type TrimImagesOptions,
+  type OnCompleteOptions,
+} from "./transformers/trimImages";
