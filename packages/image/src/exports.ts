@@ -11,5 +11,5 @@ export { type TexturePackerOptions } from "./transformers/texturePacker/options"
 export {
   trimImages,
   type TrimImagesOptions,
-  type OnCompleteOptions,
+  type TrimImagesOnCompleteOptions,
 } from "./transformers/trimImages";

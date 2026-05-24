@@ -1,7 +1,7 @@
 import { extname } from "node:path";
 import { writeFile } from "node:fs/promises";
 
-import { File, Transformer } from "@assetpipe/core/types";
+import { File, MaybePromise, Transformer } from "@assetpipe/core/types";
 import { tmpfile } from "@assetpipe/config";
 import sharp from "sharp";
 
@@ -9,7 +9,7 @@ import { IMAGE_EXTENSIONS } from "../utils/imageFormat";
 
 type Size = { width: number; height: number };
 
-export type OnCompleteOptions = {
+export type TrimImagesOnCompleteOptions = {
   /** The original, untrimmed input file. */
   source: File;
   /** Dimensions of the source image, in pixels. */
@@ -55,7 +55,7 @@ export type TrimImagesOptions = {
    *
    * Not called for fully-uniform images, since no trim is performed.
    */
-  onComplete?: (options: OnCompleteOptions) => File[];
+  onComplete?: (options: TrimImagesOnCompleteOptions) => MaybePromise<File[]>;
 
   /**
    * Determines if the file is an image and should be processed by this transformer.
@@ -154,12 +154,12 @@ export function trimImages(options: TrimImagesOptions = {}): Transformer {
 
         if (options.onComplete !== undefined) {
           resultFiles.push(
-            ...options.onComplete({
+            ...(await options.onComplete({
               source: file,
               sourceSize,
               trimmedSize,
               trimOffset,
-            }),
+            })),
           );
         }
       }),
