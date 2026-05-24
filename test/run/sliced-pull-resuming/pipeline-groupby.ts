@@ -28,12 +28,10 @@ const extras = query("assets/extras/*.txt").pipe(async (files) => {
 });
 
 export default query("assets/main/*.{a,b}", {
-  groupBy: (file) => file.basename.split(".")[0],
+  groupBy: (file) => file.stem,
 })
   .pipe(async (files) => {
-    const tag = files.find((f) => f.dirname !== "__extras__")!.basename.split(
-      ".",
-    )[0];
+    const tag = files.find((f) => f.dirname !== "__extras__")!.stem;
     await bumpCounter("pre-" + tag);
     const sorted = files.toSorted((a, b) =>
       a.basename > b.basename ? 1 : -1,
@@ -52,7 +50,7 @@ export default query("assets/main/*.{a,b}", {
   .pipe(async (files) => {
     const main = files.find((f) => f.dirname !== "__extras__")!;
     const extra = files.find((f) => f.dirname === "__extras__");
-    const tag = main.basename.split(".")[0];
+    const tag = main.stem;
     await bumpCounter("post-" + tag);
     const mainRaw = await readFile(main.content, "utf-8");
     const extraRaw = extra ? await readFile(extra.content, "utf-8") : "";

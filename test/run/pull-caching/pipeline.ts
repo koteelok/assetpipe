@@ -7,9 +7,7 @@ async function jsonjoin(files: readonly File[]): Promise<File[]> {
       const array = JSON.parse(await readFile(file.content, "utf-8"));
       const out = tmpfile();
       await writeFile(out, array.join(""));
-      return file
-        .withBasename(file.basename.replace("json", "txt"))
-        .withContent(out);
+      return file.withExtname(".txt").withContent(out);
     }),
   );
 }

@@ -388,8 +388,7 @@ export function extractTiles(_options: ExtractTilesOptions): Transformer {
                           tileIndex: row * columns + column,
                         });
                       } else {
-                        const extension = extname(file.basename);
-                        basename = `${file.basename.replace(extension, "")}_${left}_${top}${extension}`;
+                        basename = `${file.stem}_${left}_${top}${file.extname}`;
                       }
 
                       resultFiles.push(

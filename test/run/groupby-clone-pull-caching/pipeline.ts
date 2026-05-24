@@ -17,7 +17,7 @@ const masks = query("assets/masks/*.txt", { parallel: true }).pipe(
 );
 
 export default query("assets/tiles/*.{tile,meta}", {
-  groupBy: (file) => file.basename.split(".")[0],
+  groupBy: (file) => file.stem,
 })
   .pipe((files) => (files.length === 2 ? files : []))
   .pull(masks.clone().pipe((files) => files.map((f) => f.withDirname("__masks__"))))
@@ -48,5 +48,5 @@ export default query("assets/tiles/*.{tile,meta}", {
 
     const out = tmpfile();
     await writeFile(out, `${tileText}|${metaText}|${maskTexts.join(",")}`);
-    return [new File({ target: tileFile.basename.replace(".tile", ".out"), content: out })];
+    return [new File({ target: `${tileFile.stem}.out`, content: out })];
   });
