@@ -1,6 +1,6 @@
 {
   "name": "@assetpipe/config",
-  "version": "0.6.1",
+  "version": "0.8.0",
   "author": "",
   "license": "Apache-2.0",
   "description": "",
@@ -28,7 +28,7 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@assetpipe/core": "^0.6.1"
+    "@assetpipe/core": "^0.8.0"
   },
   "devDependencies": {
     "tsdown": "^0.15.6"
