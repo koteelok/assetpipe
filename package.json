@@ -6,6 +6,7 @@
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "npx simple-git-hooks",
     "build": "node scripts/build.mjs",
     "release": "node scripts/release.mjs",
     "test": "vitest run",
@@ -13,11 +14,19 @@
     "format": "prettier . --check",
     "format:fix": "prettier . --write"
   },
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged"
+  },
+  "lint-staged": {
+    "**/*.{ts,js,mjs,json,yml,yaml,md}": "prettier --check"
+  },
   "devDependencies": {
     "@types/node": "^24.5.2",
     "globals": "^16.4.0",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.6.2",
     "rimraf": "^6.1.3",
+    "simple-git-hooks": "^2.13.1",
     "tsdown": "^0.15.6",
     "typescript": "^5.9.2",
     "vitest": "^4.0.18"
