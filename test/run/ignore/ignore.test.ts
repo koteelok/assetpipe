@@ -1,7 +1,7 @@
 import { run } from "@assetpipe/core/runtime";
-import { readdir, readFile } from "fs/promises";
+import { readdir, readFile, rm } from "fs/promises";
 import { resolve } from "path";
-import { expect, test } from "vitest";
+import { afterEach, expect, test } from "vitest";
 
 test("ignore(): excludes matched files from all other pipelines", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
@@ -24,4 +24,8 @@ test("ignore(): excludes matched files from all other pipelines", async () => {
   expect(filelist).toContain("a.txt");
   expect(filelist).toContain("b.txt");
   expect(filelist).toContain("x.json");
+});
+
+afterEach(async () => {
+  await rm(resolve(__dirname, "output"), { recursive: true, force: true });
 });

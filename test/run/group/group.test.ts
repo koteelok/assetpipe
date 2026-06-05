@@ -1,7 +1,7 @@
 import { run } from "@assetpipe/core/runtime";
-import { readdir, readFile } from "fs/promises";
+import { readdir, readFile, rm } from "fs/promises";
 import { resolve } from "path";
-import { expect, test } from "vitest";
+import { afterEach, expect, test } from "vitest";
 
 test("group(): runs sibling pipelines in parallel and collects all outputs", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
@@ -20,4 +20,8 @@ test("group(): runs sibling pipelines in parallel and collects all outputs", asy
   const jsons = await readFile(resolve(outputDirectory, "jsons.txt"), "utf-8");
   // Both json payloads should be present
   expect(jsons).toConsistOf('{"value":10}|{"value":20}');
+});
+
+afterEach(async () => {
+  await rm(resolve(__dirname, "output"), { recursive: true, force: true });
 });

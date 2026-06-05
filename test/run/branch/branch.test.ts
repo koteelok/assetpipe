@@ -1,7 +1,7 @@
 import { run } from "@assetpipe/core/runtime";
-import { readdir, readFile } from "fs/promises";
+import { readdir, readFile, rm } from "fs/promises";
 import { resolve } from "path";
-import { expect, test } from "vitest";
+import { afterEach, expect, test } from "vitest";
 
 test(".branch(): fans input into multiple transformers and merges all results", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
@@ -37,4 +37,8 @@ test(".branch(): fans input into multiple transformers and merges all results", 
   expect(await readFile(resolve(outputDirectory, "lower_c.txt"), "utf-8")).toBe(
     "gamma",
   );
+});
+
+afterEach(async () => {
+  await rm(resolve(__dirname, "output"), { recursive: true, force: true });
 });

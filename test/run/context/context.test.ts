@@ -1,7 +1,7 @@
 import { run } from "@assetpipe/core/runtime";
-import { readdir, readFile } from "fs/promises";
+import { readdir, readFile, rm } from "fs/promises";
 import { resolve } from "path";
-import { expect, test } from "vitest";
+import { afterEach, expect, test } from "vitest";
 
 test("context(): resolves inner pipeline queries relative to the given root", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
@@ -19,4 +19,8 @@ test("context(): resolves inner pipeline queries relative to the given root", as
 
   // All three txt values should be present, joined by |, sorted
   expect(content).toConsistOf("alpha|beta|gamma");
+});
+
+afterEach(async () => {
+  await rm(resolve(__dirname, "output"), { recursive: true, force: true });
 });

@@ -1,7 +1,7 @@
 import { run } from "@assetpipe/core/runtime";
-import { readdir, readFile } from "fs/promises";
+import { readdir, readFile, rm } from "fs/promises";
 import { resolve } from "path";
-import { expect, test } from "vitest";
+import { afterEach, expect, test } from "vitest";
 
 test("query: processes each file individually", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
@@ -22,4 +22,8 @@ test("query: processes each file individually", async () => {
   expect(await readFile(resolve(outputDirectory, "c.txt.out"), "utf-8")).toBe(
     "GAMMA",
   );
+});
+
+afterEach(async () => {
+  await rm(resolve(__dirname, "output"), { recursive: true, force: true });
 });

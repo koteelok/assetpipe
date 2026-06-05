@@ -1,7 +1,7 @@
 import { run } from "@assetpipe/core/runtime";
-import { readdir, readFile } from "fs/promises";
+import { readdir, readFile, rm } from "fs/promises";
 import { resolve } from "path";
-import { expect, test } from "vitest";
+import { afterEach, expect, test } from "vitest";
 
 test("query with groupBy: groups files by dirname and produces one bundle per group", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
@@ -29,4 +29,8 @@ test("query with groupBy: groups files by dirname and produces one bundle per gr
   );
   expect(jsonBundle).toContain('{"value":10}');
   expect(jsonBundle).toContain('{"value":20}');
+});
+
+afterEach(async () => {
+  await rm(resolve(__dirname, "output"), { recursive: true, force: true });
 });

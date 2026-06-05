@@ -1,7 +1,7 @@
 import { run } from "@assetpipe/core/runtime";
-import { readdir, readFile } from "fs/promises";
+import { readdir, readFile, rm } from "fs/promises";
 import { resolve } from "path";
-import { expect, test } from "vitest";
+import { afterEach, expect, test } from "vitest";
 
 test("claim: query with claim takes ownership so a later query on the same glob sees no files", async () => {
   const entry = resolve(__dirname, "pipeline.ts");
@@ -29,4 +29,8 @@ test("claim: query with claim takes ownership so a later query on the same glob 
 
   // The select pipeline should have received no files (no content after the prefix)
   expect(selected).toBe("selected:");
+});
+
+afterEach(async () => {
+  await rm(resolve(__dirname, "output"), { recursive: true, force: true });
 });
