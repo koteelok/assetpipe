@@ -14,7 +14,13 @@ export type DataFormatFunction = (
 const raw: DataFormatFunction = async (atlas, options) => {
   const output = tmpfile();
   await writeFile(output, JSON.stringify(atlas));
-  return [new File({ basename: `${atlas.name}.json`, dirname: options.output, content: output })];
+  return [
+    new File({
+      basename: `${atlas.name}.json`,
+      dirname: options.output,
+      content: output,
+    }),
+  ];
 };
 
 const TexturePacker: DataFormatFunction = async (atlas, options) => {
@@ -58,7 +64,13 @@ const TexturePacker: DataFormatFunction = async (atlas, options) => {
       },
     }),
   );
-  return [new File({ basename: `${atlas.name}.json`, dirname: options.output, content: output })];
+  return [
+    new File({
+      basename: `${atlas.name}.json`,
+      dirname: options.output,
+      content: output,
+    }),
+  ];
 };
 
 export const dataFormats = { raw, TexturePacker };

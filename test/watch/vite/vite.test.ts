@@ -52,9 +52,7 @@ describe("vite dev server", () => {
     try {
       await server.listen();
 
-      const result = await server.transformRequest(
-        resolve(srcDir, "main.js"),
-      );
+      const result = await server.transformRequest(resolve(srcDir, "main.js"));
       expect(result, "main.js should be transformable").not.toBeNull();
       // The plugin's load() in dev mode returns `export default "<url>?t=<ts>"`
       // — the import in main.js gets rewritten by Vite to point at the

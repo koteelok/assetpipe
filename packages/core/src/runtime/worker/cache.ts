@@ -58,7 +58,7 @@ class ExecutionCache {
   }
 
   toJSON() {
-    const results: Record<string, { target: string, content: string }[]> = {};
+    const results: Record<string, { target: string; content: string }[]> = {};
     for (const id in this.results) {
       const files = this.results[id];
       const serializedFiles = [];
@@ -67,7 +67,7 @@ class ExecutionCache {
         serializedFiles[i] = {
           target: file.target,
           content: file.content,
-        }
+        };
       }
       results[id] = serializedFiles;
     }
@@ -77,7 +77,7 @@ class ExecutionCache {
       serializedOutput[i] = {
         target: file.target,
         content: file.content,
-      }
+      };
     }
     return {
       results,
@@ -96,7 +96,7 @@ class ExecutionCache {
         files[i] = new File({
           target: serializedFile.target,
           content: serializedFile.content,
-        })
+        });
       }
       this.results[id] = files;
     }
@@ -106,7 +106,7 @@ class ExecutionCache {
       this.output[i] = new File({
         target: serializedFile.target,
         content: serializedFile.content,
-      })
+      });
     }
   }
 }

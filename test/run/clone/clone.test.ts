@@ -191,10 +191,7 @@ describe("clone", () => {
     });
 
     expect(await readdir(outputDir)).toEqual(["joined.upper.txt"]);
-    const out = await readFile(
-      resolve(outputDir, "joined.upper.txt"),
-      "utf-8",
-    );
+    const out = await readFile(resolve(outputDir, "joined.upper.txt"), "utf-8");
     expect(out).toBe("ALPHA,BETA");
 
     expect(await getCounters()).toEqual({ source: 1, cloned: 1 });

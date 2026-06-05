@@ -39,9 +39,7 @@ export function convertImage(options: ConvertImageOptions): Transformer {
         const output = tmpfile();
         await image.toFormat(options.extension, options).toFile(output);
 
-        return file
-          .withExtname(`.${options.extension}`)
-          .withContent(output);
+        return file.withExtname(`.${options.extension}`).withContent(output);
       }),
     );
   };

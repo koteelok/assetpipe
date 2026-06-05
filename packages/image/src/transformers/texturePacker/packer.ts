@@ -129,7 +129,11 @@ export async function packAssets(
           width = Math.max(width, info.width);
           height = Math.max(height, info.height);
 
-          return new File({ basename: `${name}.${format.extension}`, dirname: options.output, content: output });
+          return new File({
+            basename: `${name}.${format.extension}`,
+            dirname: options.output,
+            content: output,
+          });
         }),
       );
 

@@ -4,8 +4,8 @@ import path from "path";
 
 // Files are grouped by their parent directory name (e.g. "txt", "json").
 // The transformer concatenates files in each group into one output bundle.
-export default query("assets/**/*.*", { groupBy: (file) => file.dirname })
-  .pipe(async (files) => {
+export default query("assets/**/*.*", { groupBy: (file) => file.dirname }).pipe(
+  async (files) => {
     const texts = await Promise.all(
       files.map((f) => readFile(f.content, "utf-8")),
     );
@@ -13,4 +13,5 @@ export default query("assets/**/*.*", { groupBy: (file) => file.dirname })
     const out = tmpfile();
     await writeFile(out, texts.join("\n"));
     return [new File({ target: `${group}.bundle`, content: out })];
-  });
+  },
+);

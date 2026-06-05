@@ -32,7 +32,7 @@ export class PipelineExecutor {
       // typecript is dumb lol
       this.cache = new PipelineCacheManager(
         this.state,
-        this.options as AssetpipeCacheOptions
+        this.options as AssetpipeCacheOptions,
       );
       await this.cache.init();
     }
@@ -84,7 +84,9 @@ export class PipelineExecutor {
             const relative = path
               .relative(basePath, fullPath)
               .replaceAll(path.sep, "/");
-            pipeline.queryResult.push(new File({ target: relative, content: fullPath }));
+            pipeline.queryResult.push(
+              new File({ target: relative, content: fullPath }),
+            );
           }
           break;
         }

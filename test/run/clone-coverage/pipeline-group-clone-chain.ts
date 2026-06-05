@@ -40,9 +40,7 @@ const combined = group(left, right);
 
 const step1 = combined.clone().pipe(async (files) => {
   await bumpCounter("step1");
-  const sorted = files.toSorted((a, b) =>
-    a.basename > b.basename ? 1 : -1,
-  );
+  const sorted = files.toSorted((a, b) => (a.basename > b.basename ? 1 : -1));
   const joined = await Promise.all(
     sorted.map(async (f) => {
       const raw = await readFile(f.content, "utf-8");

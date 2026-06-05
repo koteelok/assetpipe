@@ -73,7 +73,9 @@ class InteractivePipeline {
       opts.kind = "QueryPipeline";
       opts.query = [];
     } else {
-      throw new Error("clone is only supported on query/group/context pipelines");
+      throw new Error(
+        "clone is only supported on query/group/context pipelines",
+      );
     }
 
     const opts = cloned as unknown as mixins.InteractiveOptions;

@@ -76,8 +76,10 @@ export type TrimImagesOptions = {
 
 export function trimImages(options: TrimImagesOptions = {}): Transformer {
   const trimOptions: sharp.TrimOptions = {};
-  if (options.background !== undefined) trimOptions.background = options.background;
-  if (options.threshold !== undefined) trimOptions.threshold = options.threshold;
+  if (options.background !== undefined)
+    trimOptions.background = options.background;
+  if (options.threshold !== undefined)
+    trimOptions.threshold = options.threshold;
   if (options.lineArt !== undefined) trimOptions.lineArt = options.lineArt;
 
   return async (files) => {

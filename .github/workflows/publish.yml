@@ -3,7 +3,7 @@ name: Publish
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -21,8 +21,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Ensure npm supports trusted publishing
         run: npm install -g npm@latest
@@ -33,4 +33,4 @@ jobs:
 
       - run: npx nx release publish --verbose
         env:
-          NPM_CONFIG_PROVENANCE: 'true'
+          NPM_CONFIG_PROVENANCE: "true"

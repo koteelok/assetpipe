@@ -24,7 +24,13 @@ const extras = query("assets/extras/*.txt").pipe(async (files) => {
     .join("|");
   const out = tmpfile();
   await writeFile(out, joined);
-  return [new File({ basename: "extras.bundle", dirname: "__extras__", content: out })];
+  return [
+    new File({
+      basename: "extras.bundle",
+      dirname: "__extras__",
+      content: out,
+    }),
+  ];
 });
 
 export default query("assets/main/*.{a,b}", {
@@ -33,9 +39,7 @@ export default query("assets/main/*.{a,b}", {
   .pipe(async (files) => {
     const tag = files.find((f) => f.dirname !== "__extras__")!.stem;
     await bumpCounter("pre-" + tag);
-    const sorted = files.toSorted((a, b) =>
-      a.basename > b.basename ? 1 : -1,
-    );
+    const sorted = files.toSorted((a, b) => (a.basename > b.basename ? 1 : -1));
     const joined = await Promise.all(
       sorted.map(async (f) => {
         const raw = await readFile(f.content, "utf-8");

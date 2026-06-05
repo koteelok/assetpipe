@@ -20,7 +20,9 @@ export default query("assets/tiles/*.{tile,meta}", {
   groupBy: (file) => file.stem,
 })
   .pipe((files) => (files.length === 2 ? files : []))
-  .pull(masks.clone().pipe((files) => files.map((f) => f.withDirname("__masks__"))))
+  .pull(
+    masks.clone().pipe((files) => files.map((f) => f.withDirname("__masks__"))),
+  )
   .pipe(async (files) => {
     let tileFile: File | undefined;
     let metaFile: File | undefined;

@@ -38,7 +38,10 @@ const visitor = new Visitor({
   },
 
   ImportExpression: (node) => {
-    if (node.source.type === "Literal" && typeof node.source.value === "string") {
+    if (
+      node.source.type === "Literal" &&
+      typeof node.source.value === "string"
+    ) {
       addSpecifier(node.source.value);
     }
   },

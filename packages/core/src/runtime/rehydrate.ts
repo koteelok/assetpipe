@@ -10,7 +10,9 @@ export function rehydrateFiles(files: readonly File[]): File[] {
   return out;
 }
 
-export function rehydrateMetadata(metadata: ExecutionMetadata): ExecutionMetadata {
+export function rehydrateMetadata(
+  metadata: ExecutionMetadata,
+): ExecutionMetadata {
   return {
     addedFiles: rehydrateFiles(metadata.addedFiles),
     changedFiles: rehydrateFiles(metadata.changedFiles),

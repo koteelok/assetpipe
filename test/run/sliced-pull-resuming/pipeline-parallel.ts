@@ -24,7 +24,13 @@ const extras = query("assets/extras/*.txt").pipe(async (files) => {
     .join("|");
   const out = tmpfile();
   await writeFile(out, joined);
-  return [new File({ basename: "extras.bundle", dirname: "__extras__", content: out })];
+  return [
+    new File({
+      basename: "extras.bundle",
+      dirname: "__extras__",
+      content: out,
+    }),
+  ];
 });
 
 export default query("assets/main/*.txt", { parallel: true })

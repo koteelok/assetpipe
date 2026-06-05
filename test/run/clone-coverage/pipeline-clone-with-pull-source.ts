@@ -24,7 +24,13 @@ const extras = query("assets/extras/*.txt").pipe(async (files) => {
     .join("|");
   const out = tmpfile();
   await writeFile(out, concat);
-  return [new File({ basename: "extras.bundle", dirname: "__extras__", content: out })];
+  return [
+    new File({
+      basename: "extras.bundle",
+      dirname: "__extras__",
+      content: out,
+    }),
+  ];
 });
 
 // Source has a `pull` in its commands. The clone reads source's resolved
@@ -34,9 +40,7 @@ const source = query("assets/main/*.txt")
   .pull(extras)
   .pipe(async (files) => {
     await bumpCounter("source");
-    const sorted = files.toSorted((a, b) =>
-      a.basename > b.basename ? 1 : -1,
-    );
+    const sorted = files.toSorted((a, b) => (a.basename > b.basename ? 1 : -1));
     const joined = await Promise.all(
       sorted.map(async (f) => {
         const raw = await readFile(f.content, "utf-8");

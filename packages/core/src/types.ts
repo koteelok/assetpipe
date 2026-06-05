@@ -99,7 +99,11 @@ export class File {
   }
 
   withDirname(dirname: string): File {
-    return new File({ basename: this.basename, dirname, content: this.content });
+    return new File({
+      basename: this.basename,
+      dirname,
+      content: this.content,
+    });
   }
 
   withStem(stem: string): File {
