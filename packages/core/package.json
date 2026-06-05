@@ -66,18 +66,5 @@
   },
   "devDependencies": {
     "tsdown": "^0.15.6"
-  },
-  "nx": {
-    "name": "core",
-    "targets": {
-      "build": {
-        "inputs": [
-          "{projectRoot}/**/*.ts"
-        ],
-        "outputs": [
-          "{projectRoot}/dist"
-        ]
-      }
-    }
   }
 }

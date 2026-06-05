@@ -6,17 +6,16 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "nx run-many -t build -tui",
+    "build": "node scripts/build.mjs",
+    "release": "node scripts/release.mjs",
     "test": "vitest run",
     "test:clean": "rimraf --glob test/**/{output,cache}",
     "format": "prettier . --check",
     "format:fix": "prettier . --write"
   },
   "devDependencies": {
-    "@nx/js": "^21.5.3",
     "@types/node": "^24.5.2",
     "globals": "^16.4.0",
-    "nx": "21.5.3",
     "prettier": "^3.6.2",
     "rimraf": "^6.1.3",
     "tsdown": "^0.15.6",

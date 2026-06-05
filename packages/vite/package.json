@@ -36,18 +36,5 @@
   },
   "peerDependencies": {
     "vite": ">=7"
-  },
-  "nx": {
-    "name": "vite",
-    "targets": {
-      "build": {
-        "inputs": [
-          "{projectRoot}/**/*.ts"
-        ],
-        "outputs": [
-          "{projectRoot}/dist"
-        ]
-      }
-    }
   }
 }

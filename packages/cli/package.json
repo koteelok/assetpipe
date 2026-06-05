@@ -16,8 +16,5 @@
     "@assetpipe/core": "^0.8.0",
     "commander": "^14.0.2",
     "jiti": "^2.6.1"
-  },
-  "nx": {
-    "name": "cli"
   }
 }
