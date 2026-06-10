@@ -121,6 +121,48 @@ describe("vite dev server", () => {
     }
   });
 
+  test("output.glob() resolves to dev URLs and re-transforms on changes", async () => {
+    const handleReload = vi.fn();
+
+    const server = await createServer({
+      root: srcDir,
+      cacheDir: viteCacheDir,
+      logLevel: "warn",
+      configFile: false,
+      server: { port: 0, host: "127.0.0.1" },
+      plugins: [
+        assetpipe({
+          entry,
+          outputDirectory: outputDir,
+          cacheDirectory: cacheDir,
+          handleReload,
+        }),
+      ],
+    });
+
+    try {
+      await server.listen();
+
+      const globModule = resolve(srcDir, "glob.js");
+      const first = await server.transformRequest(globModule);
+      expect(first).not.toBeNull();
+      // The macro is replaced with a static map of dev URLs.
+      expect(first!.code).not.toContain("output.glob");
+      expect(first!.code).toContain('"/hello.txt"');
+      expect(first!.code).toMatch(/hello\.txt\?t=\d+/);
+
+      // A new pipeline output must show up after re-transform.
+      await writeFile(resolve(assetsDir, "world.txt"), "world content");
+      await waitForCalls(handleReload, 1);
+
+      const second = await server.transformRequest(globModule);
+      expect(second).not.toBeNull();
+      expect(second!.code).toContain('"/world.txt"');
+    } finally {
+      await server.close();
+    }
+  });
+
   test("custom prefix scopes which imports the plugin claims", async () => {
     const server = await createServer({
       root: srcDir,

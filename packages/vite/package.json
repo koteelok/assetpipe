@@ -22,6 +22,16 @@
         "types": "./dist/exports.d.ts",
         "default": "./dist/exports.js"
       }
+    },
+    "./client": {
+      "import": {
+        "types": "./dist/client.d.mts",
+        "default": "./dist/client.mjs"
+      },
+      "require": {
+        "types": "./dist/client.d.ts",
+        "default": "./dist/client.js"
+      }
     }
   },
   "scripts": {
@@ -29,6 +39,10 @@
   },
   "dependencies": {
     "@assetpipe/core": "^0.8.0",
+    "@types/picomatch": "^4.0.2",
+    "magic-string": "^0.30.21",
+    "oxc-parser": "^0.107.0",
+    "picomatch": "^4.0.3",
     "sirv": "^3.0.0"
   },
   "devDependencies": {

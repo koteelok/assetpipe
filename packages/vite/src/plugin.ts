@@ -7,8 +7,12 @@ import {
   run,
 } from "@assetpipe/core/runtime";
 import type { File } from "@assetpipe/core/types";
+import MagicString from "magic-string";
+import picomatch from "picomatch";
 import sirv from "sirv";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
+
+import { findOutputGlobCalls, mayContainGlobCalls } from "./utils/globMacro";
 
 import {
   cleanUrl,
@@ -153,6 +157,10 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
   const pipelineFileMap = new Map<string, File>();
   // Maps pipeline key (e.g. "/test.txt") → set of module ids (e.g. "\0assetpipe:/test.txt?raw")
   const pipelineModuleIds = new Map<string, Set<string>>();
+  // Ids of modules whose code contained `output.glob()` macro calls —
+  // their transforms bake in the current output set, so they are
+  // invalidated after every pipeline re-execution.
+  const globImporterIds = new Set<string>();
   // Most recent output files, exposed to user-provided callbacks.
   let currentOutputFiles: readonly File[] = [];
 
@@ -303,6 +311,80 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
       return `export default ${JSON.stringify(encodeURIPath(url))}`;
     },
 
+    // The `output.glob()` macro: replace each call with an object literal
+    // mapping matched output paths to URLs. The assetpipe counterpart of
+    // `import.meta.glob`, which cannot see pipeline outputs (it scans the
+    // real filesystem at transform time, while pipeline outputs only exist
+    // behind this plugin's resolution).
+    async transform(code, id) {
+      if (!mayContainGlobCalls(id, code)) return;
+
+      const calls = await findOutputGlobCalls(id, code);
+      if (calls.length === 0) return;
+
+      await activePipeline.promise;
+
+      const config = this.environment.getTopLevelConfig();
+      const magic = new MagicString(code);
+
+      for (const call of calls) {
+        if (call.pattern === null) {
+          this.error(
+            "output.glob() only supports a string literal pattern, " +
+              "so it can be statically replaced at build time.",
+            call.start,
+          );
+        }
+
+        // Patterns address outputs the same way imports do: "/"-prefixed
+        // target paths.
+        const pattern = call.pattern.startsWith("/")
+          ? call.pattern
+          : `/${call.pattern}`;
+        const matcher = picomatch(pattern);
+        const matched = [...pipelineFileMap.entries()]
+          .filter(([key]) => matcher(key))
+          .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+        const properties: string[] = [];
+
+        if (config.command === "build") {
+          // Emit each matched file as a regular Rollup asset and reference
+          // its final (hashed) URL.
+          for (const [key, file] of matched) {
+            const referenceId = this.emitFile({
+              type: "asset",
+              name: file.basename,
+              source: await readFile(file.content),
+            });
+            properties.push(
+              `${JSON.stringify(key)}: import.meta.ROLLUP_FILE_URL_${referenceId}`,
+            );
+          }
+        } else {
+          const base = joinUrlSegments(
+            config.server?.origin ?? "",
+            config.base ?? "/",
+          );
+          for (const [key] of matched) {
+            const url = `${joinUrlSegments(base, key)}?t=${lastBuildTimestamp}`;
+            properties.push(
+              `${JSON.stringify(key)}: ${JSON.stringify(encodeURIPath(url))}`,
+            );
+          }
+        }
+
+        magic.overwrite(call.start, call.end, `({ ${properties.join(", ")} })`);
+      }
+
+      globImporterIds.add(id);
+
+      return {
+        code: magic.toString(),
+        map: magic.generateMap({ hires: true }),
+      };
+    },
+
     // The `emit` option: copy pipeline outputs into the bundle at their
     // literal target paths, for apps that reference outputs with runtime
     // strings instead of imports.
@@ -390,6 +472,16 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
             }
             resolvedImportsBySource.clear();
             resolvedImportsById.clear();
+
+            // Modules with output.glob() calls baked in the previous output
+            // set — re-transform them against the new one.
+            for (const importerId of globImporterIds) {
+              for (let i = 0; i < environments.length; i++) {
+                const moduleGraph = environments[i].moduleGraph;
+                const mod = moduleGraph.getModuleById(importerId);
+                if (mod) moduleGraph.invalidateModule(mod);
+              }
+            }
 
             if (options.handleReload) {
               options.handleReload({ server, files, metadata });

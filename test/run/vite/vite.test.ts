@@ -206,4 +206,57 @@ describe("vite SPA build", () => {
     expect(files).toContain("plain.txt");
     expect(files).not.toContain("skipped.txt");
   });
+
+  test("output.glob() is replaced with a URL map and emits matched assets", async () => {
+    await writeFile(resolve(assetsDir, "world.txt"), "world content");
+
+    await build({
+      root: srcDir,
+      cacheDir: viteCacheDir,
+      logLevel: "warn",
+      configFile: false,
+      build: {
+        outDir: buildOut,
+        emptyOutDir: true,
+        write: true,
+        rollupOptions: {
+          input: resolve(srcDir, "glob.html"),
+        },
+      },
+      plugins: [
+        assetpipe({
+          entry,
+          outputDirectory: outputDir,
+          cacheDirectory: cacheDir,
+        }),
+      ],
+    });
+
+    const html = await readFile(resolve(buildOut, "glob.html"), "utf-8");
+    const scriptMatch = html.match(/src="([^"]+\.js)"/);
+    expect(scriptMatch).not.toBeNull();
+    const bundlePath = scriptMatch![1].replace(/^\//, "");
+    const bundle = await readFile(resolve(buildOut, bundlePath), "utf-8");
+
+    // The macro must be gone, replaced by a static object literal keyed by
+    // "/"-prefixed output paths, with no unresolved placeholders.
+    expect(bundle).not.toContain("output.glob");
+    expect(bundle).not.toMatch(/ROLLUP_FILE_URL_/);
+    expect(bundle).toContain('"/hello.txt"');
+    expect(bundle).toContain('"/world.txt"');
+
+    // Each matched output is emitted as a real asset whose URL the map
+    // points at.
+    const files = (await readdir(buildOut, { recursive: true })).map((f) =>
+      String(f).replace(/\\/g, "/"),
+    );
+    const emitted = files.filter(
+      (f) => f.startsWith("assets/") && f.endsWith(".txt"),
+    );
+    expect(emitted).toHaveLength(2);
+
+    for (const emittedFile of emitted) {
+      expect(bundle).toContain(emittedFile.split("/").pop()!);
+    }
+  });
 });
