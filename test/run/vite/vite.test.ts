@@ -128,4 +128,82 @@ describe("vite SPA build", () => {
     );
     expect(txtAssets).toHaveLength(0);
   });
+
+  test("emit: true copies unimported outputs into the bundle at literal paths", async () => {
+    // plain.txt is never imported — without `emit` it would not reach dist.
+    await writeFile(resolve(assetsDir, "plain.txt"), "runtime-addressed");
+
+    await build({
+      root: srcDir,
+      cacheDir: viteCacheDir,
+      logLevel: "warn",
+      configFile: false,
+      build: {
+        outDir: buildOut,
+        emptyOutDir: true,
+        write: true,
+        rollupOptions: {
+          input: resolve(srcDir, "index.html"),
+        },
+      },
+      plugins: [
+        assetpipe({
+          entry,
+          outputDirectory: outputDir,
+          cacheDirectory: cacheDir,
+          emit: true,
+        }),
+      ],
+    });
+
+    // The unimported output lands at its literal target path.
+    expect(await readFile(resolve(buildOut, "plain.txt"), "utf-8")).toBe(
+      "runtime-addressed",
+    );
+
+    // The imported output (hello.txt) is emitted as a hashed asset through
+    // its module — emit: true must not ship a second, literal-path copy.
+    const files = (await readdir(buildOut, { recursive: true })).map((f) =>
+      String(f).replace(/\\/g, "/"),
+    );
+    expect(files).not.toContain("hello.txt");
+    expect(
+      files.some((f) => f.startsWith("assets/") && f.endsWith(".txt")),
+      "imported hello.txt should still exist as a hashed asset",
+    ).toBe(true);
+  });
+
+  test("emit predicate gives full per-file control", async () => {
+    await writeFile(resolve(assetsDir, "plain.txt"), "runtime-addressed");
+    await writeFile(resolve(assetsDir, "skipped.txt"), "left out");
+
+    await build({
+      root: srcDir,
+      cacheDir: viteCacheDir,
+      logLevel: "warn",
+      configFile: false,
+      build: {
+        outDir: buildOut,
+        emptyOutDir: true,
+        write: true,
+        rollupOptions: {
+          input: resolve(srcDir, "index.html"),
+        },
+      },
+      plugins: [
+        assetpipe({
+          entry,
+          outputDirectory: outputDir,
+          cacheDirectory: cacheDir,
+          emit: (file) => file.basename === "plain.txt",
+        }),
+      ],
+    });
+
+    const files = (await readdir(buildOut, { recursive: true })).map((f) =>
+      String(f).replace(/\\/g, "/"),
+    );
+    expect(files).toContain("plain.txt");
+    expect(files).not.toContain("skipped.txt");
+  });
 });

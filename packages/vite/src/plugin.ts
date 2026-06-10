@@ -110,6 +110,24 @@ export interface AssetpipePluginOptions {
    * build-mode run (where no watcher metadata is available).
    */
   onOutput?: (options: OnOutputOptions) => void;
+
+  /**
+   * Emit pipeline outputs into the production bundle at their literal
+   * `target` paths (no hashing). Use this when the app references outputs
+   * with runtime strings (`'sprites/hero.webp'`) instead of imports —
+   * Rollup never sees those as dependencies, so without this option only
+   * imported outputs reach the bundle.
+   *
+   * - `false` (default): only imported outputs are bundled.
+   * - `true`: emit every output that was not already pulled in by an
+   *   import (imported outputs are inlined or emitted as hashed assets
+   *   through their module, so emitting them again would ship two copies).
+   * - predicate: full control — called for every output file; return
+   *   `true` to emit it at its literal path.
+   *
+   * Dev mode is unaffected: the dev server already serves all outputs.
+   */
+  emit?: boolean | ((file: File) => boolean);
 }
 
 export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
@@ -126,6 +144,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
     handleReload: _pluginOptions.handleReload,
     resolveImport: _pluginOptions.resolveImport,
     onOutput: _pluginOptions.onOutput,
+    emit: _pluginOptions.emit ?? false,
   };
 
   let lastBuildTimestamp = -1;
@@ -282,6 +301,29 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
       );
       const url = `${joinUrlSegments(base, cleanId)}?t=${lastBuildTimestamp}`;
       return `export default ${JSON.stringify(encodeURIPath(url))}`;
+    },
+
+    // The `emit` option: copy pipeline outputs into the bundle at their
+    // literal target paths, for apps that reference outputs with runtime
+    // strings instead of imports.
+    async generateBundle() {
+      if (!options.emit) return;
+
+      for (const [key, file] of pipelineFileMap) {
+        if (typeof options.emit === "function") {
+          if (!options.emit(file)) continue;
+        } else if (pipelineModuleIds.has(key)) {
+          // Imported outputs already reach the bundle through their module
+          // (inlined or emitted as a hashed asset) — don't ship two copies.
+          continue;
+        }
+
+        this.emitFile({
+          type: "asset",
+          fileName: file.target,
+          source: await readFile(file.content),
+        });
+      }
     },
 
     async configureServer(server) {
