@@ -265,7 +265,7 @@ export function assetpipe(_pluginOptions: AssetpipePluginOptions): Plugin {
         const source = await readFile(file.content);
         const refId = this.emitFile({
           type: "asset",
-          name: path.basename(file.content),
+          name: file.basename,
           source,
         });
         return {
