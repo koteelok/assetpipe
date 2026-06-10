@@ -128,5 +128,3 @@ export class File {
 export type Transformer = (
   files: readonly File[],
 ) => MaybePromise<MaybeReadonly<File[]>>;
-const x = { a: 1, b: 2 };
-const x = { a: 1, b: 2 };
