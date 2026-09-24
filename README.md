@@ -2,7 +2,7 @@
 
 AssetPipe is a first-of-its-kind asset pipeline framework for code-first projects.
 
-> Status: work in progress. The API may change between versions.
+> Status: abandoned. This was a passion project that was ideal for the pre-AI era of game development. Now I do all of my asset integration/management/transformation work via just asking AI to build an asset pipeline for my projects.
 
 ## Why
 
